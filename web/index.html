@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PhotoCluster · 手机媒体整理</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<aside>
+  <div class="brand"><span class="logo">◈</span> PhotoCluster</div>
+  <div class="sub">让每一份值得留下的媒体，都有空间。</div>
+  <div class="device"><span class="dot"></span><select id="device" aria-label="安卓设备"></select><button id="refresh" class="secondary" title="重新读取手机媒体目录，发现新增、修改和已删除的媒体；只同步列表，不进行相似分类。">↻ 同步目录</button></div>
+  <p id="syncInfo" class="muted" aria-live="polite">目录尚未同步</p>
+  <div class="album-heading"><h2>手机相册</h2><button id="selectAll" class="link">全选</button><button id="selectNone" class="link">清空</button></div>
+  <div id="albumList" class="albums"><p class="muted">连接手机，点击 ↻ 读取相册。</p></div>
+  <div class="side-footer"><span>◉ 手机直连 · 本地分析</span><p>分类文件夹仅在本程序显示。<br>删除和移动直接作用于手机原文件。</p></div>
+</aside>
+<main>
+  <header><div><div class="eyebrow">YOUR PHOTO LIBRARY, SIMPLIFIED</div><h1>把相似的媒体，放在一起。</h1><p class="muted">从所有相册中发现重复与近似图片、动图和视频，逐组比较，自行选择保留。</p></div><span class="badge">本地处理 · ADB</span></header>
+  <div id="notice" role="alert" hidden></div>
+  <section class="stats"><div><span>媒体库文件</span><strong id="photoCount">—</strong><small id="albumCount">等待读取相册</small></div><div><span>相似媒体组</span><strong id="groupCount">—</strong><small id="groupPhotoCount">等待扫描</small></div><div><span>候选重复体积</span><strong id="potential">—</strong><small>每组仅保留参考图的估算，需人工确认</small></div></section>
+  <section class="scan-panel"><div class="scan-settings"><label>扫描哪些目录<select id="scanTarget"><option value="all">手机全部相册（含新目录）</option><option value="selected">仅左侧勾选的相册</option></select></label><label>比较范围<select id="scope"><option value="all">跨相册比较</option><option value="album">仅相册内部</option></select></label><label>相似程度<select id="mode"><option value="strong">增强 · 旋转 / 缩放 / 拉伸</option><option value="strict">快速 · 压缩 / 正交旋转</option><option value="relaxed">宽松 · 也查找近似画面</option></select></label><label>扫描方式<select id="scanStrategy"><option value="incremental">增量更新（推荐）</option><option value="force">强制全量重算</option></select></label><div class="scan-actions"><button id="stop" class="secondary" hidden>停止扫描</button><button id="scan" class="primary">同步并分类 <span>→</span></button></div></div><p id="scanHelp" class="scan-help">每次分类前自动同步手机目录。增量更新只读取新增和变化的图片，未变化的图库可快速复用结果。</p><details class="scan-guide"><summary>同步目录、增量分类、全量重算有什么区别？</summary><p>同步目录只更新文件列表，不计算相似度。增量分类先同步，再处理新增和变化的媒体；强制全量重算则重新读取所选范围内每个原文件并重新分类，包括 GIF，不使用旧特征和旧分组。选择“手机全部相册”时也会自动包含新出现的目录。扫描期间新产生的文件会在下一轮同步时纳入。</p></details><div class="progress-info"><span id="statusText" role="status">连接手机，点击“同步并分类”开始</span><span id="progressText"></span></div><progress id="progress" max="100" value="0"></progress><div id="currentPath" class="current"></div></section>
+  <section class="results"><div class="results-heading"><div><h2>相似分类文件夹 <span class="badge">虚拟分组</span></h2><p class="muted" id="resultMeta">点击文件夹查看媒体；原图仍在手机原目录，不会因分类而移动。</p></div><div class="exports"><a href="/api/export.csv" title="导出分组、手机路径、拍摄与修改时间等表格，不导出原图。">导出 CSV ↗</a><a href="/api/export.json" title="导出完整分类数据供其他程序读取，不包含原图。">JSON ↗</a></div></div><div class="filters"><select id="filterAlbum" aria-label="筛选相册"><option value="">全部相册</option></select><select id="filterKind" aria-label="筛选类型"><option value="all">所有相似组</option><option value="exact">仅完全相同的文件组</option><option value="animated">仅动画相似组</option></select><select id="groupSort" aria-label="分类文件夹排序"><option value="count">媒体数量最多</option><option value="newest">最新日期优先</option><option value="oldest">最早日期优先</option><option value="size">候选体积最大</option></select><input id="search" type="search" placeholder="搜索文件名或手机路径" aria-label="搜索文件名或手机路径"><span id="filteredCount" class="muted"></span></div><div id="groupBrowser" hidden><button id="backGroups" class="secondary">← 返回分类文件夹</button><h3 id="openGroupTitle"></h3><p class="muted">这里是虚拟相似组，不支持新增媒体。点击图片查看手机原图；勾选后可删除原文件或移动到真实目录。</p><div class="operation-bar"><button id="pickAll" class="secondary">全选</button><button id="clearPicks" class="secondary">清空</button><span id="pickedCount">已选 0 个</span><select id="photoSort" aria-label="组内媒体排序"><option value="reference">参考图优先</option><option value="newest">日期从新到旧</option><option value="oldest">日期从旧到新</option><option value="size">文件从大到小</option><option value="name">文件名顺序</option></select><select id="moveTarget" aria-label="移动到手机真实目录"></select><button id="movePicked" class="secondary">移动所选</button><button id="deletePicked" class="danger">删除所选文件</button></div><div id="groupPhotos" class="detail-photos"></div></div><div id="groups"><div class="empty"><div>▧</div><h3>给媒体库留一点呼吸的空间</h3><p>分类完成后，每个虚拟文件夹代表一组相似媒体。<br>点进去比较，然后自行决定删除或移动。</p></div></div><div id="pagination" class="pagination"><button id="previous" class="secondary">← 上一页</button><span id="pageInfo">第 1 页</span><button id="next" class="secondary">下一页 →</button></div></section>
+  <details id="errorPanel" hidden><summary>无法处理的图片</summary><pre id="errors"></pre></details>
+  <footer>图片覆盖 Android 媒体库中当前可读取的本地相册；不含云端、私有缓存和未索引文件。小幅裁剪可能漏检，宽松模式需要更仔细核对。</footer>
+</main>
+<dialog id="preview" aria-label="手机原图查看器"><div class="viewer-toolbar"><span id="previewPosition"></span><button id="zoomOut" class="secondary">−</button><button id="zoomFit" class="secondary">适应窗口</button><button id="zoomActual" class="secondary">100%</button><button id="zoomIn" class="secondary">＋</button><button id="retryOriginal" class="secondary">重新读取原图</button><button id="closePreview" class="secondary">关闭 ×</button></div><div class="viewer-body"><button id="previewPrevious" class="viewer-arrow" aria-label="上一张">❮</button><div id="previewViewport"><img id="previewImage" alt="手机原图"></div><button id="previewNext" class="viewer-arrow" aria-label="下一张">❯</button></div><p id="previewStatus" role="status"></p><p id="previewPath"></p><p id="previewMetadata"></p><small>← → 组内循环切图 · 滚轮缩放 · 放大后拖动 · Esc 关闭。原图仅按需读取，切图或关闭即释放应用中的原图引用。</small></dialog>
+<dialog id="operationDialog"><h2 id="operationTitle"></h2><p id="operationExplanation"></p><pre id="operationPaths"></pre><div class="dialog-actions"><button id="cancelOperation" class="secondary">取消</button><button id="confirmOperation" class="danger">确认操作</button></div></dialog>
+<script src="/locales/en.js"></script>
+<script src="/locales/api-en.js"></script>
+<script src="/i18n.js"></script>
+<script>I18n.localizeDocument();</script>
+<script src="/enhancements.js"></script>
+<script src="/language.js"></script>
+<script src="/scan-options.js"></script>
+<script src="/speed-chart.js"></script>
+<script src="/app.js"></script>
+<script src="/media-view.js"></script>
+<script src="/viewer.js"></script>
+<script src="/help.js"></script>
+<script src="/performance.js"></script>
+</body></html>

@@ -1,0 +1,2 @@
+# Optional NVIDIA CUDA acceleration. CPU-only installs remain supported.
+cupy-cuda12x>=14,<15
