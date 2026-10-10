@@ -2,7 +2,7 @@
   "name": "photocluster",
   "private": true,
   "description": "Development-only tests for the static PhotoCluster UI",
-  "scripts": {"test": "node --test tests"},
+  "scripts": {"test": "node scripts/test-ui.cjs"},
   "engines": {"node": ">=20"},
   "devDependencies": {"acorn": "^8.15.0", "jsdom": "^26.1.0"}
 }
