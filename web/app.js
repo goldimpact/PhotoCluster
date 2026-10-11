@@ -59,8 +59,12 @@ async function poll(){if(pollBusy||window.ServiceControl?.stopping)return;pollBu
   $('progress').value=s.total?s.done/s.total*100:0;$('currentPath').textContent=s.phase==='scan'?(s.current||''):'';
   if(s.running&&!resultsLoaded)await loadGroups();
   if(!s.running){const marker=JSON.stringify([s.phase,s.done,s.started_at]);if(wasRunning||marker!==lastResult){
-    lastResult=marker;if(wasRunning)backGroups();await loadAlbums();await loadGroups();
+    // A completed scan replaces the result set, even when it reused cached matches
+    // or finished between polls. Previous-result browsing keeps its page on stop/error.
+    if(s.phase==='done'){page=1;backGroups();}else if(wasRunning)backGroups();
+    await loadAlbums();await loadGroups();
     reviewItems=await api('errors');renderReview();
+    lastResult=marker;
   }}
   wasRunning=s.running;updatePicks();
 }catch(e){window.SpeedChart?.unavailable();notice(e);}finally{pollBusy=false;}}
