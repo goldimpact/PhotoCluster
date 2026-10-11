@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from photocluster.runtime import workspace_id
 from photocluster.config import DATA
+from photocluster.client import inspect_service
 
 COPY = {
     'title': ('PhotoCluster 控制窗口', 'PhotoCluster control'),
@@ -31,6 +32,10 @@ COPY = {
     'install': ('将从公开软件源下载 Python 依赖，不会上传媒体。继续？', 'Download Python dependencies from public package sources? Media will not be uploaded.'),
     'close_busy': ('当前仍在启动或安装，请等待完成后再退出。', 'Startup or installation is still running. Please wait before exiting.'),
     'installed': ('依赖安装完成，可以点击启动。', 'Dependencies installed. Click Start to continue.'),
+    'checking': ('正在检查本地服务…', 'Checking the local service…'),
+    'legacy': ('旧版服务正在运行，无法从此窗口退出', 'An older service is running; this window cannot stop it'),
+    'legacy_note': ('不会重复启动。请先在原启动终端退出旧服务，再用本启动器启动新版。如果找不到原窗口，请联系启动它的人；不要改端口绕过。', 'No second service will be started. Stop the older service in its original terminal, then use this launcher. If you cannot find that window, contact whoever started it; do not change ports to bypass it.'),
+    'external_note': ('可以打开现有界面，但不能接管退出。请在原终端退出后，再用本启动器启动。', 'You can open the existing interface, but exit remains with its original terminal. Stop it there before starting from this launcher.'),
 }
 
 
@@ -42,7 +47,7 @@ def main():
         raise SystemExit('Desktop controls require Tk: install python3-tk (or tkinter for your Python distribution). CLI: bash start.sh')
     root = tk.Tk(); root.title('PhotoCluster'); root.geometry('610x390'); root.minsize(560,360)
     language = tk.StringVar(value='zh'); port = tk.StringVar(value='8765')
-    events = queue.Queue(); state = {'phase':'idle','snapshot':None,'child':None,'log':None,'busy':False,'quit':False,'exit_sent':False,'seen':False,'polling':False,'repair':False,'ended':False}
+    events = queue.Queue(); state = {'phase':'checking','snapshot':None,'child':None,'log':None,'busy':False,'quit':False,'exit_sent':False,'seen':False,'polling':False,'repair':False,'ended':False}
     text = lambda key: COPY[key][language.get() == 'en']
     frame=ttk.Frame(root,padding=24);frame.pack(fill='both',expand=True)
     title=ttk.Label(frame,font=('',18,'bold'));title.pack(anchor='w')
@@ -69,15 +74,16 @@ def main():
         req=Request(base+path, data=b'' if token else None, headers={'X-PhotoCluster-Token':token} if token else {})
         with build_opener(ProxyHandler({})).open(req,timeout=3) as response:return json.load(response)
     def render(*_):
-        title.config(text=text('title'));status.config(text=text(state['phase']));note.config(text=text('note'))
+        title.config(text=text('title'));status.config(text=text(state['phase']))
+        note.config(text=text('legacy_note' if state['phase']=='legacy' else 'external_note' if state['phase']=='external' else 'note'))
         for button,key in [(start,'start'),(opened,'open'),(stopped,'exit'),(repair,'repair'),(logs,'logs')]:button.config(text=text(key))
         port_label.config(text=text('port'))
-        active=state['phase'] in ('starting','stopping','running','external') or bool(state['child'])
+        active=state['phase'] in ('checking','starting','stopping','running','external','legacy','conflict','unknown') or bool(state['child'])
         start.config(state='disabled' if active or state['busy'] else 'normal')
         repair.config(state='disabled' if active or state['busy'] else 'normal')
         opened.config(state='normal' if state['snapshot'] and not state['snapshot'].get('stopping') else 'disabled')
         stopped.config(state='normal' if state['snapshot'] and state['snapshot'].get('managed') and state['phase']!='stopping' else 'disabled')
-        entry.config(state='disabled' if active or state['busy'] else 'normal')
+        entry.config(state='disabled' if (active and state['phase'] not in ('conflict','unknown')) or state['busy'] else 'normal')
         try:address.config(text=url())
         except ValueError:address.config(text='')
     def launch(install=False):
@@ -105,7 +111,10 @@ def main():
             if state['child'] or state['busy']:messagebox.showinfo('PhotoCluster',text('close_busy'));return
             if close_window:root.destroy()
             return
-        if not snapshot.get('managed'):messagebox.showinfo('PhotoCluster',text('external'));return
+        if not snapshot.get('managed'):
+            if close_window:root.destroy()
+            else:messagebox.showinfo('PhotoCluster',text('legacy_note' if snapshot.get('legacy') else 'external'))
+            return
         if state['phase']=='stopping':return
         if not messagebox.askyesno('PhotoCluster',text('confirm')):return
         state['quit']=close_window
@@ -128,8 +137,8 @@ def main():
             try:base=url()
             except ValueError:base=None
             def read():
-                try:events.put(('status',request(base,'/api/runtime') if base else None))
-                except Exception:events.put(('status',None))
+                try:events.put(('status',(base,inspect_service(base) if base else {'conflict':True})))
+                except Exception:events.put(('status',(base,{'unavailable':True})))
             threading.Thread(target=read,daemon=True).start()
         while not events.empty():
             kind,data=events.get()
@@ -137,7 +146,15 @@ def main():
             elif kind=='exit-error':state['quit']=False;messagebox.showerror('PhotoCluster',text('request_failed'))
             else:
                 state['polling']=False
-                if data and (data.get('application')!='PhotoCluster' or data.get('workspace')!=workspace_id()):
+                response_base,data=data
+                try:
+                    if response_base!=url():continue
+                except ValueError:data={'conflict':True}
+                if data and data.get('unavailable'):
+                    state.update(phase='unknown',snapshot=None)
+                elif data and data.get('legacy'):
+                    state.update(phase='legacy',snapshot=data)
+                elif data and (data.get('application')!='PhotoCluster' or data.get('workspace')!=workspace_id()):
                     state.update(phase='conflict',snapshot=None)
                 elif data:
                     state['snapshot']=data
@@ -146,6 +163,8 @@ def main():
                         webbrowser.open(url());state['seen']=True
                 else:
                     state['snapshot']=None
+                    if not state['child'] and state['phase'] in ('checking','legacy','conflict','unknown'):
+                        state['phase']='idle'
                     if not state['child'] and state['phase'] in ('running','stopping','external'):
                         state['phase']='idle' if state['ended'] else 'unknown'
                         if state['quit'] and state['ended']:root.destroy();return

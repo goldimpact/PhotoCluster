@@ -26,8 +26,9 @@
         const legacy=await fetch('/api/status',{cache:'no-store',signal:AbortSignal.timeout(3000)});
         if(!legacy.ok)throw Error('unavailable');
         const status=await legacy.json();if(typeof status.running!=='boolean')throw Error('unavailable');
-        $('serviceState').textContent=I18n.t('本地服务正在运行');
-        $('serviceHint').textContent=I18n.t('此实例由外部命令启动，请在启动终端按 Ctrl+C 退出。');
+        $('serviceState').textContent=I18n.t('旧版服务正在运行');
+        $('serviceHint').textContent=I18n.t('页面已更新，但后台仍是旧版，没有界面退出功能。请先在原启动窗口退出，再用 PhotoCluster 启动器启动；重复打开启动器不会升级当前服务。');
+        $('exitService').textContent=I18n.t('旧版服务不支持界面退出');
         $('exitService').disabled=true;return;
       }
       if(!r.ok)throw Error('unavailable');
@@ -37,7 +38,8 @@
       snapshot=next;
       if(next.stopping){freeze();$('serviceState').textContent=I18n.t('正在退出，等待当前工作完成…');$('serviceHint').textContent=I18n.t('正在保存缓存和释放预览，请稍候。');}
       else{
-        $('serviceState').textContent=I18n.t('本地服务正在运行');
+        $('serviceState').textContent=next.managed?I18n.t('本地服务正在运行'):I18n.t('服务由外部命令管理');
+        $('exitService').textContent=next.managed?I18n.t('退出 PhotoCluster'):I18n.t('请从原启动窗口退出');
         $('serviceHint').textContent=next.managed?I18n.t('关闭浏览器标签页不会退出程序。'):I18n.t('此实例由外部命令启动，请在启动终端按 Ctrl+C 退出。');
         $('exitService').disabled=!next.managed;
       }

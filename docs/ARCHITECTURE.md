@@ -11,6 +11,10 @@ work, counts complete streaming responses, cancels classification cooperatively 
 waits for the scan thread and active requests before Uvicorn exits. It never kills a
 PID. `scripts/desktop.py` provides optional Tk controls; CLI and web exit use the same
 managed server. Direct Uvicorn remains externally managed and rejects web shutdown.
+`client.py` recognizes older services without the lifecycle endpoint via their
+page and status API. Those are shown as read-only existing instances: the launcher
+can open the page but cannot start over them or shut them down. A timeout remains
+unknown, not stopped. A legacy instance has no verified workspace or exit token.
 
 ## Recognition
 

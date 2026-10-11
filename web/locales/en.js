@@ -1,5 +1,10 @@
 /* Application copy only. Interpolated filenames and paths are never translated. */
 window.PhotoClusterEnglish = {
+  "旧版服务正在运行": "An older service is running",
+  "页面已更新，但后台仍是旧版，没有界面退出功能。请先在原启动窗口退出，再用 PhotoCluster 启动器启动；重复打开启动器不会升级当前服务。": "The page has been updated, but the older backend has no in-app exit. Stop it in its original launch window, then start with the PhotoCluster launcher. Opening another launcher does not upgrade the running service.",
+  "旧版服务不支持界面退出": "Older service: in-app exit unavailable",
+  "服务由外部命令管理": "Service managed by an external command",
+  "请从原启动窗口退出": "Exit from the original launch window",
   "正在连接本地服务…": "Connecting to the local service…",
   "关闭浏览器标签页不会退出程序。": "Closing this browser tab does not quit the application.",
   "退出 PhotoCluster": "Exit PhotoCluster",
