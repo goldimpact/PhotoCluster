@@ -16,7 +16,10 @@ class PairCache:
         self.version=version;self.pending=0;self.hits=0;self.computed=0
 
     def identity(self,p):
+        from .frame_policy import sampling_identity
         fields=[self.version,p['sha256'],p.get('key'),bool(p.get('animated')),p.get('media_type','image')]
+        sampled=sampling_identity(p)
+        if sampled:fields.append(sampled)
         return hashlib.sha256(json.dumps(fields).encode()).hexdigest()
 
     def query(self,sources,target):

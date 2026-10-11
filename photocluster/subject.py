@@ -91,10 +91,12 @@ def frames(photo, thumbs):
 
 
 def vectors(photos, thumbs, progress, cancelled, force):
-    identity = model_identity(); result = []
+    from .frame_policy import feature_identity
+    model = model_identity(); result = []
     with closing(sqlite3.connect(Path(thumbs)/'subjects.sqlite3', timeout=30)) as con, con:
         con.execute('CREATE TABLE IF NOT EXISTS vectors (key TEXT PRIMARY KEY, sha TEXT, version TEXT, data BLOB)')
         for i,p in enumerate(photos):
+            identity = feature_identity(model, p)
             if cancelled():
                 return None
             row = None if force else con.execute('SELECT sha,version,data FROM vectors WHERE key=?', (p['key'],)).fetchone()

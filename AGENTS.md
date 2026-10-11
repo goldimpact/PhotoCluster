@@ -56,6 +56,10 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
   rejects scans/syncs, shares the operation lock and invalidates pending file plans.
   Keep models, settings, journals, unknown files and other instances; never call ADB.
 - media.py / video.py: recovery and temporary original lifetimes.
+- frame_policy.py versions dynamic-media sampling across catalog refresh, all
+  embedding/router caches, variant features, pair verdicts and final results.
+  Keep still-image caches compatible; upgrade legacy 64px animation samples on
+  the next requested scan, not by clearing the library or background rescanning.
 - web/: plain browser JavaScript/CSS, no production build or npm dependency.
 - config.py owns host data/model paths. Windows uses .venv and Linux .venv-linux.
   WSL defaults to data/wsl; never reuse Windows feature paths in a Linux cache.

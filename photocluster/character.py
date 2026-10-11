@@ -64,10 +64,12 @@ def encode(images):
 
 def vectors(photos,thumbs,progress,cancelled,force):
     from .subject import frames
-    result=[];identity=model_identity()
+    from .frame_policy import feature_identity
+    result=[];model=model_identity()
     with closing(sqlite3.connect(Path(thumbs)/'characters.sqlite3',timeout=30)) as con,con:
         con.execute('CREATE TABLE IF NOT EXISTS vectors (key TEXT PRIMARY KEY, sha TEXT, version TEXT, data BLOB)')
         for i,p in enumerate(photos):
+            identity=feature_identity(model,p)
             if cancelled():return None
             row=None if force else con.execute('SELECT sha,version,data FROM vectors WHERE key=?',(p['key'],)).fetchone()
             if row and row[:2]==(p['sha256'],identity):

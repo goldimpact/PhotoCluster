@@ -35,10 +35,13 @@ def target_statistics(path,index):
 
 
 def prepare(photo, force=False):
+    from .frame_policy import sampling_identity
+    sampled = sampling_identity(photo)
     path = Path(photo['feature_path']).with_suffix('.variants.npz')
     if path.exists() and not force:
         with np.load(path) as data:
-            if str(data['sha']) == photo['sha256'] and int(data['version']) == VERSION:
+            if (str(data['sha']) == photo['sha256'] and int(data['version']) == VERSION
+                    and (str(data['sampling']) if 'sampling' in data else '') == sampled):
                 return dict(photo, variant_path=str(path), hashes=data['hashes'].tolist(),
                             signatures=data['signatures'].tolist())
     images = [vision.comparison_image(photo['feature_path'])]
@@ -62,7 +65,9 @@ def prepare(photo, force=False):
     hashes = np.unique(np.asarray(hashes, np.uint64))
     signatures = np.unique(np.asarray(signatures, np.uint64))
     np.savez_compressed(path, **values, count=len(images), hashes=hashes,
-                        signatures=signatures, sha=photo['sha256'], version=VERSION)
+                        signatures=signatures, sha=photo['sha256'], version=VERSION, sampling=sampled)
+    # A sampling upgrade may rewrite the same path with different frame data.
+    load.cache_clear();frame_image.cache_clear();target_statistics.cache_clear()
     return dict(photo, variant_path=str(path), hashes=hashes.tolist(), signatures=signatures.tolist())
 
 

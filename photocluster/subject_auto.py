@@ -17,7 +17,7 @@ from . import subject, character
 from .config import DATA
 
 MODEL=DATA/'models/subject-routing.onnx'
-VERSION='subject-auto-multiregion-abstain-v2'
+VERSION='subject-auto-multiregion-abstain-frames-v3'
 ROUTING_VERSION='mobilenetv3-v15-bilinear-half384-v1'
 _REGION_ASSIGNMENTS=np.array(list(permutations(range(4))))
 _session=None
@@ -75,10 +75,12 @@ def eligible(scores):
 
 
 def load_routes(photos,thumbs,progress,cancelled,force):
-    result=[];identity=routing_identity()
+    from .frame_policy import feature_identity
+    result=[];model=routing_identity()
     with closing(sqlite3.connect(Path(thumbs)/'subject-routing.sqlite3',timeout=30)) as con,con:
         con.execute('CREATE TABLE IF NOT EXISTS routes (key TEXT PRIMARY KEY, sha TEXT, version TEXT, data BLOB)')
         for i,p in enumerate(photos):
+            identity=feature_identity(model,p)
             if cancelled():return None
             row=None if force else con.execute('SELECT sha,version,data FROM routes WHERE key=?',(p['key'],)).fetchone()
             if row and row[:2]==(p['sha256'],identity):scores=np.frombuffer(row[2],np.float32).reshape(-1,5)

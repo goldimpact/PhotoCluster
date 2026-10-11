@@ -187,6 +187,9 @@ class Service:
             # Match reuse applies only to an identical input set, mode, scope,
             # and algorithm version. It never suppresses fresh-file scanning.
             signature_fields=[11 if mode=='variants' else 7,mode,scope,threshold,sorted((p['key'],p['sha256']) for p in processed)]
+            from .frame_policy import sampling_identity
+            sampled = [(p['key'], version) for p in processed if (version := sampling_identity(p))]
+            if sampled:signature_fields.append(sorted(sampled))
             if mode in ('content','subject'):
                 from . import semantic, subject
                 signature_fields.append((subject.backend(subject_engine) if mode=='subject' else semantic).model_identity())
@@ -309,6 +312,7 @@ class Service:
                 con.executemany('DELETE FROM features WHERE key=?', ((p['key'],) for p in photos))
                 con.executemany('DELETE FROM skipped WHERE key=?', ((p['key'],) for p in photos))
         thumbnail_names = {p.name for p in self.thumbs.iterdir()}
+        from .frame_policy import needs_refresh
         missing, skip_rows = [], []
         for p in photos:
             if self.cancel.is_set():
@@ -316,7 +320,10 @@ class Service:
             key = p['key']
             if key in cached and key+'.jpg' in thumbnail_names and key+'.npz' in thumbnail_names:
                 feature=json.loads(cached.pop(key))
-                processed.append(dict(p, **feature))
+                if needs_refresh(dict(p, **feature)):
+                    missing.append(p)
+                else:
+                    processed.append(dict(p, **feature))
             elif key in skipped:
                 errors.append(dict(path=p['path'], error=skipped[key]))
             else:

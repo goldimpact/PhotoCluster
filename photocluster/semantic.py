@@ -71,14 +71,16 @@ def embeddings(images):
 
 
 def ensure_embeddings(photo,thumbs,force=False):
+    from .frame_policy import feature_identity
+    identity=feature_identity(model_identity(),photo)
     target=Path(thumbs)/(photo['key']+'.clip.npz')
     if not force and target.exists():
         with np.load(target) as cache:
-            if str(cache['version'])==model_identity() and str(cache['sha256'])==photo['sha256']:
+            if str(cache['version'])==identity and str(cache['sha256'])==photo['sha256']:
                 return cache['vectors']
     images=frame_images(photo,thumbs)
     vectors=embeddings(images)
-    np.savez_compressed(target,vectors=vectors,version=model_identity(),sha256=photo['sha256'])
+    np.savez_compressed(target,vectors=vectors,version=identity,sha256=photo['sha256'])
     return vectors
 
 
@@ -107,13 +109,14 @@ def load_vectors(ordered,thumbs,progress,cancelled,force):
     """One bulk DB read replaces thousands of zip/file opens on warm scans."""
     database=Path(thumbs)/'embeddings.sqlite3'
     identity=model_identity()
+    from .frame_policy import feature_identity
     with closing(sqlite3.connect(database,timeout=30)) as con, con:
         con.execute('CREATE TABLE IF NOT EXISTS embeddings (key TEXT PRIMARY KEY, sha TEXT, version TEXT, vector BLOB)')
         cached={} if force else {key:(sha,version,blob) for key,sha,version,blob in con.execute('SELECT * FROM embeddings')}
         vectors=[None]*len(ordered);missing=[]
         for i,p in enumerate(ordered):
             row=cached.get(p['key'])
-            if row and row[0]==p['sha256'] and row[1]==identity:
+            if row and row[0]==p['sha256'] and row[1]==feature_identity(identity,p):
                 vectors[i]=np.frombuffer(row[2],np.float32).reshape(-1,512)
             else:missing.append((i,p))
         done=len(ordered)-len(missing)
@@ -134,7 +137,7 @@ def load_vectors(ordered,thumbs,progress,cancelled,force):
             results.extend(read(x) for x in absent)
             for i,v in results:
                 vectors[i]=v;p=ordered[i]
-                con.execute('INSERT OR REPLACE INTO embeddings VALUES (?,?,?,?)',(p['key'],p['sha256'],identity,v.astype(np.float32).tobytes()))
+                con.execute('INSERT OR REPLACE INTO embeddings VALUES (?,?,?,?)',(p['key'],p['sha256'],feature_identity(identity,p),v.astype(np.float32).tobytes()))
             con.commit();done+=len(chunk)
             if progress:progress(done,len(ordered),'embedding')
     return vectors
