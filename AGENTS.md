@@ -47,11 +47,18 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
   identity solution. Preserve upstream preprocessing/distance scale, separate model
   license and cache identity. Do not gate CCIP matches on DINO or colour equality.
 - subject_auto.py is the single user-facing subject workflow. Do not reintroduce
-  category/model selectors. It uses frame-specific routing for supplemental evidence;
+  category/model selectors. A unified UI does not restrict internal models or
+  strategies: evaluate complementary retrieval, localization and verification
+  routes, including their shared errors; model agreement alone is not confidence.
+  It uses frame-specific routing for supplemental evidence;
   every input retains the general route. Version all contributing models/policies,
   preserve original-reference checks, and never advertise universal identity accuracy.
   Inconsistent frame routes abstain. General verification needs distinct one-to-one
   region support; do not restore single-region maxima as the final acceptance rule.
+- perceptual.py optionally verifies candidates with exported DreamSim ONNX features.
+  Keep signals aligned to the same original frame pair, lazy bounded extraction,
+  SHA/model/sampling isolation, and explicit basic/enhanced status when absent.
+  Presets are development-calibrated; do not advertise a library-wide accuracy.
 - cache.py cleanup is local and allowlisted, requires an expiring preview token,
   rejects scans/syncs, shares the operation lock and invalidates pending file plans.
   Keep models, settings, journals, unknown files and other instances; never call ADB.

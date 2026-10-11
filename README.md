@@ -33,8 +33,12 @@ phone folder. You cannot add files to virtual groups.
   in style, occlusion, multiple subjects and extreme deformations can still fail.
   General verification requires multiple one-to-one region matches; conflicting
   frame routes abstain. This blocks some style-only acceptance paths but can miss
-  crops, occlusion and cross-style positives. Improvement on user-labelled errors
-  remains unvalidated. Older subject results request incremental reclassification;
+  crops, occlusion and cross-style positives. An optional locally exported DreamSim
+  encoder adds candidate verification; the UI distinguishes basic verification
+  from perceptual verification. It is not included in the 191 MB installer.
+  See [setup and development-calibrated thresholds](docs/SUBJECT-GROUPING.md).
+  Initial development examples improve, but library-wide accuracy is unvalidated.
+  Older subject results request incremental reclassification;
   compatible features need not be cleared.
 - **Local cache** in the scan panel shows storage usage and offers confirmed cleanup
   of results, analysis, or the whole media inventory. Phone originals, installed

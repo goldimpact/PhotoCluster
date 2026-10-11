@@ -15,6 +15,7 @@ def library(tmp_path):
     (s.thumbs/(key+'.jpg')).write_bytes(b'preview')
     (s.thumbs/(key+'.npz')).write_bytes(b'features')
     (s.thumbs/'notes.txt').write_text('user-owned unknown file')
+    (s.thumbs/'subject-perceptual.sqlite3').write_bytes(b'optional feature cache')
     (s.data/'matches').mkdir();(s.data/'matches'/(key+'.json')).write_text('{}')
     (s.data/'models').mkdir();(s.data/'models/model.onnx').write_bytes(b'model')
     (s.data/'operations.jsonl').write_text('journal')
@@ -36,6 +37,7 @@ def test_cleanup_scopes_preserve_phone_models_unknown_files_and_journal(tmp_path
     assert result['failed']==0 and s.result['summary'] is None
     assert not m.operations.plans
     assert (s.thumbs/(key+'.jpg')).exists()==(scope=='results')
+    assert (s.thumbs/'subject-perceptual.sqlite3').exists()==(scope=='results')
     with s.connect() as con:assert bool(con.execute('SELECT * FROM features').fetchall())==(scope=='results')
     assert (s.catalog['serial'] is None)==(scope=='all')
     for name in ('models/model.onnx','operations.jsonl','desktop-settings.json','thumbnails/notes.txt'):

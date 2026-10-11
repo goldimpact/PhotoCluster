@@ -9,6 +9,11 @@ from PIL import Image
 from photocluster import subject, character, subject_auto as auto
 
 
+@pytest.fixture(autouse=True)
+def base_pipeline_without_optional_export(monkeypatch):
+    monkeypatch.setattr(auto.perceptual,'installed',lambda:False)
+
+
 def gv(angle):
     v=np.zeros((1,6,384),np.float32);v[:,:,0]=np.cos(angle);v[:,:,1]=np.sin(angle)
     return v

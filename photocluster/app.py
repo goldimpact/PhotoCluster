@@ -182,8 +182,10 @@ def cache_clear(body: CacheToken):
 @app.get('/api/subject-model')
 def subject_model(engine: Literal['auto','general','anime']='auto'):
     from .subject import backend
+    from . import perceptual
     encoder=backend(engine)
-    return dict(installed=encoder.installed() if engine=='auto' else encoder.MODEL.exists(), version=encoder.VERSION,engine=engine)
+    return dict(installed=encoder.installed() if engine=='auto' else encoder.MODEL.exists(), version=encoder.VERSION,engine=engine,
+                perceptual=engine=='auto' and perceptual.installed())
 
 
 class SubjectModelInstall(BaseModel):
@@ -249,7 +251,9 @@ def groups(page: int = 1, album: str = '', kind: str = 'all',
     summary=dict(result['summary']) if result['summary'] else None
     if summary and summary.get('mode')=='subject':
         from .subject_auto import VERSION
-        summary['recognition_outdated']=summary.get('subject_engine')!='auto' or summary.get('subject_policy')!=VERSION
+        from . import perceptual
+        summary['recognition_outdated']=(summary.get('subject_engine')!='auto' or summary.get('subject_policy')!=VERSION
+                                        or summary.get('subject_perceptual',False)!=perceptual.installed())
     return dict(groups=selected[start:start+20], total=len(selected), summary=summary,
                 ungrouped=dict(count=len(unmatched), covers=unmatched[:3], available='ungrouped' in result))
 

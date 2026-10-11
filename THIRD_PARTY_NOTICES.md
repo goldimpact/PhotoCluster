@@ -56,3 +56,11 @@ Automatic subject routing also uses the MIT-licensed
 `ea8f4497b0e3ee86f43b6a6fd38884e25f960979a1debb5c4e1ee6a22e80d111`.
 Its image-style output only enables supplemental evidence. It does not establish
 subject identity, single-character presence, or guaranteed model applicability.
+
+Optional perceptual candidate verification uses the DINOv2-B/14 single-branch
+checkpoint from [DreamSim](https://github.com/ssundaram21/dreamsim) (MIT), with
+[DINOv2](https://github.com/facebookresearch/dinov2) (Apache-2.0) as its backbone.
+The local export tool verifies checkpoint SHA-256 values and numerical parity.
+No upstream source or weights are bundled. PyTorch, torchvision, DreamSim, PEFT
+and ONNX are optional export dependencies, not runtime requirements. Standard
+runtime inference uses ONNX Runtime. Perceptual scores are not identity probabilities.

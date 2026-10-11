@@ -220,7 +220,7 @@ class Service:
                         messages={'embedding':'本地模型分析关键帧内容','content_match':'跨格式内容归组',
                                   'subject_embedding':'本地主体模型提取整图与区域特征','subject_match':'自动发现主体分组（实验）',
                                   'character_embedding':'本地动漫角色模型提取身份特征','character_match':'按动漫角色身份归组（实验）',
-                                  'subject_routing':'分析主体识别线索','subject_supplement':'补充主体特征'}
+                                  'subject_routing':'分析主体识别线索','subject_supplement':'补充主体特征','subject_verify':'核验候选主体的感知细节'}
                         self.update(phase=phase,message=messages[phase])
                         self.update(done=done,total=total,phase_seconds=round(seconds,1),rate=round(rate,1),eta_seconds=round((total-done)/rate) if rate else None)
                     groups=(subject.backend(subject_engine) if mode=='subject' else semantic).cluster(processed,self.thumbs,scope,threshold,content_report,self.cancel.is_set,force)
@@ -279,7 +279,9 @@ class Service:
             if mode=='subject':summary['subject_engine']=subject_engine
             if mode=='subject' and subject_engine=='auto':
                 from .subject_auto import VERSION
+                from . import perceptual
                 summary['subject_policy']=VERSION
+                summary['subject_perceptual']=perceptual.installed()
             self.save('groups.json', result)
             with self.lock:
                 self.result = result

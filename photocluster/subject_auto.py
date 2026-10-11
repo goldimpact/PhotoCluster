@@ -4,7 +4,7 @@ All media enter the general route. A style classifier can enable additional
 character evidence; it never partitions the library or decides subject identity.
 This is not universal identity recognition. Routing can be wrong, too.
 """
-from contextlib import closing
+from contextlib import closing, nullcontext
 from pathlib import Path
 import sqlite3
 import threading
@@ -13,11 +13,11 @@ from itertools import permutations
 import numpy as np
 from PIL import Image
 
-from . import subject, character
+from . import subject, character, perceptual
 from .config import DATA
 
 MODEL=DATA/'models/subject-routing.onnx'
-VERSION='subject-auto-multiregion-abstain-frames-v3'
+VERSION='subject-auto-perceptual-candidates-v4'
 ROUTING_VERSION='mobilenetv3-v15-bilinear-half384-v1'
 _REGION_ASSIGNMENTS=np.array(list(permutations(range(4))))
 _session=None
@@ -35,7 +35,7 @@ def routing_identity():
 
 
 def model_identity():
-    return ':'.join((VERSION,subject.model_identity(),character.model_identity(),routing_identity()))
+    return ':'.join((VERSION,subject.model_identity(),character.model_identity(),routing_identity(),perceptual.model_identity()))
 
 
 def session():
@@ -123,7 +123,7 @@ def general_scores(a,b,threshold):
     return np.where((whole>=.45)&(local>=0),.4*whole+.6*local,-1)
 
 
-def verify_pair(a,b,gate_a,gate_b,char_a,char_b,threshold):
+def verify_pair(a,b,gate_a,gate_b,char_a,char_b,threshold,perceptual_a=None,perceptual_b=None):
     """Frame-pair routing with explicit abstention on inconsistent routes.
 
     A rejected or unavailable identity comparison cannot fall back to style.
@@ -131,12 +131,27 @@ def verify_pair(a,b,gate_a,gate_b,char_a,char_b,threshold):
     """
     scores=general_scores(a,b,threshold)
     scores=np.where(~gate_a[:,None]&~gate_b[None,:],scores,-1)
+    support=None
+    if perceptual_a is not None or perceptual_b is not None:
+        if perceptual_a is None or perceptual_b is None:raise ValueError('Missing perceptual evidence')
+        if len(perceptual_a)!=len(a) or len(perceptual_b)!=len(b):raise ValueError('Incompatible sampled frame caches')
+        # Development presets, not identity probabilities. Same frame pair must
+        # supply every signal; never combine evidence from unrelated scenes.
+        support=(perceptual_a@perceptual_b.T)>=float(np.interp(threshold,[.65,.72,.80],[.5,.6,.7]))
+        scores=np.where(support,scores,-1)
     af,bf=np.unravel_index(int(scores.argmax()),scores.shape)
     g=(float(scores[af,bf]),int(af),int(bf))
     e=None
     if char_a is not None and char_b is not None and gate_a.any() and gate_b.any():
-        score,af,bf=character.similarity(char_a[gate_a],char_b[gate_b])
-        e=(score,int(np.flatnonzero(gate_a)[af]),int(np.flatnonzero(gate_b)[bf]))
+        if support is None:
+            score,af,bf=character.similarity(char_a[gate_a],char_b[gate_b])
+            e=(score,int(np.flatnonzero(gate_a)[af]),int(np.flatnonzero(gate_b)[bf]))
+        else:
+            values=np.clip((1+char_a@char_b.T)/2,0,1)
+            cut=float(np.interp(threshold,[.65,.72,.80],[character.DEFAULT_THRESHOLD,.85,.88]))
+            values=np.where(gate_a[:,None]&gate_b[None,:]&support&(values>=cut),values,-1)
+            af,bf=np.unravel_index(int(values.argmax()),values.shape)
+            e=(float(values[af,bf]),int(af),int(bf))
     chosen=choose_match(g,e,threshold)
     if chosen is None:return None
     route='regions' if chosen is g else 'identity'
@@ -149,7 +164,7 @@ def cluster(photos,thumbs,scope='all',threshold=.72,progress=None,cancelled=lamb
     from .vision import quality
     from .acceleration import cpu_budget
     ordered=sorted(photos,key=quality,reverse=True)
-    with cpu_budget():
+    with cpu_budget(), (closing(perceptual.VectorCache(thumbs,cancelled,force)) if perceptual.installed() else nullcontext()) as verifier:
         general=subject.vectors(ordered,thumbs,progress,cancelled,force)
         if general is None:return None
         gates=load_routes(ordered,thumbs,progress,cancelled,force)
@@ -189,12 +204,18 @@ def cluster(photos,thumbs,scope='all',threshold=.72,progress=None,cancelled=lamb
                     r=reps[j]
                     if scope=='album' and p['album']!=ordered[r]['album']:continue
                     match=verify_pair(general[r],v,gates[r],gates[i],characters.get(r),characters.get(i),threshold)
+                    if match and verifier is not None:
+                        if progress:progress(i,len(ordered),'subject_match')
+                        pa=verifier.get(ordered[r]);pb=verifier.get(p)
+                        if pa is None or pb is None:return None
+                        match=verify_pair(general[r],v,gates[r],gates[i],characters.get(r),characters.get(i),threshold,pa,pb)
                     if match:
                         margin,chosen,route=match
                         if best is None or margin>best[0]:best=(margin,j,chosen,route)
                 if best:
                     _,j,(score,af,bf),route=best
                     reason=('多个不同区域相近，仍需确认是否同一主体' if route=='regions' else '身份模型特征相近，仍需人工确认')
+                    if verifier is not None:reason='多模型候选核验通过，仍需人工确认主体'
                     groups[j].append(dict(p,score=round(min(score,.999),4),relation='subject',reason=reason,reference_frame=af,match_frame=bf))
                 else:
                     j=len(groups);groups.append([dict(p,score=1.,reason='主体组参考',relation='reference')]);reps.append(i)

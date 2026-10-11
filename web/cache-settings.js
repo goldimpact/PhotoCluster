@@ -33,8 +33,11 @@
   });
   $('installSubjectModel').onclick=()=>action(async()=>{
     const info=await api('subject-model?engine=auto');
-    if(info.installed){$('subjectModelStatus').textContent=I18n.t('主体识别资源已就绪');return;}
+    if(info.installed){$('subjectModelStatus').textContent=info.perceptual?I18n.t('主体识别资源已就绪 · 已启用感知复核'):I18n.t('主体识别资源已就绪 · 基础核验');return;}
     showScanState(await api('subject-model/install',{engine:'auto'}));
     $('subjectModelStatus').textContent=I18n.t('正在下载公共模型；可在进度区查看状态。');
   });
+  api('subject-model?engine=auto').then(info=>{
+    if(info.installed)$('subjectModelStatus').textContent=info.perceptual?I18n.t('主体识别资源已就绪 · 已启用感知复核'):I18n.t('主体识别资源已就绪 · 基础核验');
+  }).catch(()=>{});
 })();

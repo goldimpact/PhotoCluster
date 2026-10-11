@@ -1,5 +1,7 @@
 /* API display fields only; stored caches, paths and identifiers stay unchanged. */
 window.PhotoClusterApiEnglish = {
+  "多模型候选核验通过，仍需人工确认主体": "Passed combined candidate verification; review subject identity",
+  "核验候选主体的感知细节": "Verifying perceptual details of candidate subjects",
   "多个不同区域相近，仍需确认是否同一主体": "Several distinct regions match; verify that this is the same subject",
   "身份模型特征相近，仍需人工确认": "Identity-model features match; manual review is still required",
   "请先准备主体识别资源": "Prepare subject recognition resources first",
