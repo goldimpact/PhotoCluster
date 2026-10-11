@@ -165,7 +165,7 @@ class Operations:
                 g['photos'] = [p for p in g['photos'] if p['key'] != key]
         s.normalize_groups()
         for g in s.result['groups']:
-            g['potential_bytes'] = 0 if g.get('kind') in ('content','variants') else sum(p['size'] for p in g['photos'][1:])
+            g['potential_bytes'] = 0 if g.get('kind') in ('content','variants','subject') else sum(p['size'] for p in g['photos'][1:])
         s.result['summary'].update(groups=len(s.result['groups']),
                                    ungrouped=len(s.result.get('ungrouped', [])),
                                    grouped_photos=sum(len(g['photos']) for g in s.result['groups']),

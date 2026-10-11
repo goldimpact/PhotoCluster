@@ -9,17 +9,26 @@ function harness(saved){
   const change=(id,value)=>{if(typeof value==='boolean')$(id).checked=value;else $(id).value=value;$(id).events.change();};
   return {$,change,api:context.window.ScanOptions,stored};
 }
-test('all five modes have their own help; strategy changes never overwrite it',()=>{
+test('all six modes have their own help; strategy changes never overwrite it',()=>{
   const h=harness(),seen=new Set();
-  for(const mode of ['variants','strict','strong','relaxed','content']){
+  for(const mode of ['variants','strict','strong','relaxed','content','subject']){
     h.change('mode',mode);const text=h.$('scanHelp').textContent;seen.add(text);
     h.change('scanStrategy','force');assert.equal(h.$('scanHelp').textContent,text);
     assert.match(h.$('scanStrategyHelp').textContent,/强制全量重算/);
     h.change('scanStrategy','incremental');assert.equal(h.$('scanHelp').textContent,text);
     assert.equal(h.$('variantRules').hidden,mode!=='variants');
     assert.equal(h.$('contentThresholdLabel').hidden,mode!=='content');
+    assert.equal(h.$('subjectThresholdLabel').hidden,mode!=='subject');
   }
-  assert.equal(seen.size,5);
+  assert.equal(seen.size,6);
+});
+test('subject thresholds explain changes without reusing CLIP thresholds',()=>{
+  const h=harness();h.change('mode','subject');
+  for(const [value,word] of [['0.65','更宽'],['0.72','均衡'],['0.80','更严']]){
+    h.change('subjectThreshold',value);assert.match(h.$('scanHelp').textContent,/DINOv2/);
+    assert.ok(h.$('scanHelp').textContent.includes(word));
+    assert.match(h.$('scanHelp').textContent,/无需选择样例/);
+  }
 });
 test('content threshold explains each choice immediately',()=>{
   const h=harness();h.change('mode','content');

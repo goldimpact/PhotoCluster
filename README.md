@@ -25,6 +25,15 @@ phone folder. You cannot add files to virtual groups.
   it does not reliably identify one character across fan art, redrawings and memes.
   A broader threshold may mix different subjects rather than resolve their identity.
 - Fast, enhanced and relaxed near-duplicate modes for comparing copies.
+- **Automatic subjects (experimental):** a separate local DINOv2 encoder compares
+  whole images and overlapping regions, without selecting examples. It works on
+  images, GIFs and sampled video frames; character identities across radically
+  different fan art remain unvalidated. Choose this mode and use **Install / check
+  subject model** to download its pinned model (about 24 MB). Classification stays offline.
+- **Local cache** in the scan panel shows storage usage and offers confirmed cleanup
+  of results, analysis, or the whole media inventory. Phone originals, installed
+  models, settings and operation journals are kept. Model/version changes invalidate
+  affected vectors and grouping results; compatible previews can still be reused.
 - Ungrouped media and damaged-file review cards; originals on demand, looping
   viewer navigation, pointer-centered zoom and side-by-side comparison.
 - Date/count/size sorting, search, page jumps, incremental caches and speed charts.

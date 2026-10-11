@@ -80,6 +80,11 @@ async function app(language='en',saved=null){
     else if(url.pathname==='/api/groups')data={groups:[group],total:1,summary:{mode:'variants',groups:1,grouped_photos:2,scanned:2,finished_at:1,scope:'all'},ungrouped:{available:true,count:0,covers:[]}};
     else if(url.pathname==='/api/groups/1')data=group;
     else if(url.pathname==='/api/errors')data=[];
+    else if(url.pathname==='/api/subject-model')data={installed:true};
+    else if(url.pathname==='/api/cache')data={location:'test-cache',categories:Object.fromEntries(['results','analysis','library','models'].map(k=>[k,{bytes:1024,files:1}]))};
+    else if(url.pathname==='/api/cache/preview')data={token:'cache-test-only',scope:JSON.parse(options.body).scope,bytes:1024,files:1};
+    else if(url.pathname==='/api/cache/clear')data={failed:0,usage:{location:'test-cache',categories:Object.fromEntries(['results','analysis','library','models'].map(k=>[k,{bytes:0,files:0}]))}};
+    else if(url.pathname==='/api/scan')data=state;
     else if(url.pathname==='/api/hardware')data={cpu_physical:4,cpu_logical:8,memory_gb:16,workers:4,accelerator:{backend:'cpu'},sift:'CPU 并行'};
     else if(url.pathname==='/api/operations/preview')data={token:'test-only',items:photos.map(p=>({source:p.path}))};
     else throw Error('Unexpected request: '+path);
@@ -109,6 +114,37 @@ test('English page renders settings, progress, groups and permanent deletion con
     for(const el of d.querySelectorAll('.album,.filename,.real-path,#operationPaths,#language,.language-control,#filterAlbum,#moveTarget'))el.remove();
     d.querySelectorAll('script').forEach(el=>el.remove());
     assert.doesNotMatch(d.body.textContent,/[\u3400-\u9fff]/);
+  }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
+
+test('cache UI previews scope in both languages and clears only after confirmation',async()=>{
+  for(const lang of ['zh','en']){
+    const h=await app(lang);try{
+      const d=h.w.document;h.state.running=false;h.state.phase='idle';await h.w.eval('poll()');
+      await d.getElementById('cacheRefresh').onclick();assert.match(d.getElementById('cacheUsage').textContent,/KB/);
+      d.getElementById('cacheScope').value='analysis';await d.getElementById('cachePreview').onclick();
+      assert.equal(d.getElementById('cacheDialog').open,true);
+      assert.match(d.getElementById('cacheExplanation').textContent,lang==='zh'?/重新读取媒体/:/reread media/);
+      assert.ok(!h.requests.some(r=>r.path.endsWith('/clear')));
+      d.getElementById('cacheCancel').onclick();await d.getElementById('cacheConfirm').onclick();
+      assert.ok(!h.requests.some(r=>r.path.endsWith('/clear')));
+      await d.getElementById('cachePreview').onclick();await d.getElementById('cacheConfirm').onclick();
+      const clear=h.requests.filter(r=>r.path.endsWith('/clear'));assert.equal(clear.length,1);
+      assert.deepEqual(JSON.parse(clear[0].options.body),{token:'cache-test-only'});
+      assert.ok(!h.requests.some(r=>r.path.includes('operations/')));
+    }finally{await new Promise(setImmediate);h.dom.window.close();}
+  }
+});
+
+test('automatic subject mode sends its own threshold without examples and preserves language settings',async()=>{
+  const h=await app('en',{mode:'subject',subjectThreshold:'0.65'});try{
+    const d=h.w.document;h.state.running=false;h.state.phase='idle';await h.w.eval('poll()');
+    assert.equal(d.getElementById('mode').value,'subject');assert.equal(d.getElementById('subjectThresholdLabel').hidden,false);
+    assert.equal(d.getElementById('contentThresholdLabel').hidden,true);
+    assert.match(d.getElementById('scanHelp').textContent,/DINOv2/);
+    await d.getElementById('scan').onclick();
+    const request=h.requests.find(r=>r.path==='/api/scan'),body=JSON.parse(request.options.body);
+    assert.equal(body.mode,'subject');assert.equal(body.threshold,.65);assert.equal(body.examples,undefined);
   }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 test('language reload restores scope, mode, filters and album selections without starting a scan',async()=>{

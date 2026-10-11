@@ -27,3 +27,12 @@ Its public source, revision and hash are recorded locally in
 `data/models/clip-vision.json`. Weights are excluded from Git. Dependency installation
 and explicit model download require network access; classification does not upload
 media or call a hosted model.
+
+The optional automatic subject mode uses quantized ONNX weights from
+[Xenova/dinov2-small](https://huggingface.co/Xenova/dinov2-small), derived from
+[facebook/dinov2-small](https://huggingface.co/facebook/dinov2-small) and
+[DINOv2](https://github.com/facebookresearch/dinov2) (Apache-2.0).
+`scripts/setup_subject.py` pins revision `c2bb04a51fab207c420665f1946016107bffc701`
+and verifies SHA-256 before loading. Weights and download metadata remain in the
+ignored local model directory. This general visual encoder is not a specialized
+character identity classifier; the subject grouping mode is experimental.

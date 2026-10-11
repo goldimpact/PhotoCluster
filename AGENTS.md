@@ -40,6 +40,12 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
   publication; adb.py: MediaStore/transport; operations.py: phone mutations.
 - vision.py / variants.py / semantic.py: recognition; index.py / pair_cache.py /
   acceleration.py / geometry_gpu.py: retrieval, caching and optional acceleration.
+- subject.py is experimental automatic DINOv2 region grouping, not validated
+  character identity recognition. Preserve direct-reference checks, zero duplicate
+  savings and model SHA/version isolation; do not claim cross-style accuracy without data.
+- cache.py cleanup is local and allowlisted, requires an expiring preview token,
+  rejects scans/syncs, shares the operation lock and invalidates pending file plans.
+  Keep models, settings, journals, unknown files and other instances; never call ADB.
 - media.py / video.py: recovery and temporary original lifetimes.
 - web/: plain browser JavaScript/CSS, no production build or npm dependency.
 - config.py owns host data/model paths. Windows uses .venv and Linux .venv-linux.

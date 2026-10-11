@@ -4,6 +4,7 @@ import re
 import hashlib
 import threading
 import secrets
+import time
 from contextlib import asynccontextmanager
 from typing import Literal
 
@@ -18,6 +19,7 @@ from .service import ROOT, Service
 from .operations import Operations
 from .video import VideoLeases
 from .runtime import Runtime, AdmissionMiddleware
+from .cache import CacheManager, summary as cache_summary
 
 @asynccontextmanager
 async def lifespan(app):
@@ -31,6 +33,7 @@ app.state.runtime = Runtime()
 app.add_middleware(AdmissionMiddleware, owner=app)
 service = Service()
 operations = Operations(service)
+cache_manager = CacheManager(service, operations)
 original_slots = threading.BoundedSemaphore(2)
 video_leases=VideoLeases()
 
@@ -106,7 +109,7 @@ class VariantRules(BaseModel):
 
 class Scan(BaseModel):
     albums: list[str]
-    mode: Literal['strict', 'strong', 'relaxed','content','variants'] = 'variants'
+    mode: Literal['strict', 'strong', 'relaxed','content','variants','subject'] = 'variants'
     scope: Literal['all', 'album'] = 'all'
     limit: int = Field(default=0, ge=0)
     force: bool = False
@@ -143,6 +146,68 @@ def hardware():
     return hardware_info()
 
 
+class CacheScope(BaseModel):
+    scope: Literal['results', 'analysis', 'all']
+
+
+class CacheToken(BaseModel):
+    token: str
+
+
+@app.get('/api/cache')
+def cache_status():
+    try:
+        return cache_summary(service)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@app.post('/api/cache/preview')
+def cache_preview(body: CacheScope):
+    try:
+        return cache_manager.preview(body.scope)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@app.post('/api/cache/clear')
+def cache_clear(body: CacheToken):
+    try:
+        return cache_manager.execute(body.token)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+
+
+@app.get('/api/subject-model')
+def subject_model():
+    from .subject import MODEL, VERSION
+    return dict(installed=MODEL.exists(), version=VERSION)
+
+
+@app.post('/api/subject-model/install')
+def install_subject_model():
+    with service.lock:
+        if service.status['running'] or service.sync_status['running']:
+            raise HTTPException(409, '请等待扫描或同步结束后再安装模型')
+        service.cancel.clear()
+        service.update(running=True,phase='model_install',message='下载公共主体模型，不上传媒体',done=0,total=0,downloaded_bytes=0,started_at=time.time())
+        def work():
+            try:
+                from scripts.setup_subject import install
+                def progress(count):
+                    if service.cancel.is_set():raise ValueError('模型下载已取消')
+                    service.update(downloaded_bytes=count)
+                install(progress=progress)
+                service.update(phase='idle',message='主体模型已安装，可以开始分类')
+            except Exception as exc:
+                service.update(phase='error',message=str(exc))
+            finally:
+                service.update(running=False)
+        service.scan_thread=threading.Thread(target=work,daemon=True)
+        service.scan_thread.start()
+        return dict(service.status)
+
+
 @app.get('/api/groups')
 def groups(page: int = 1, album: str = '', kind: str = 'all',
            sort: Literal['count', 'newest', 'oldest', 'size'] = 'count', q: str = ''):
@@ -165,7 +230,7 @@ def groups(page: int = 1, album: str = '', kind: str = 'all',
     elif sort == 'oldest':
         selected = sorted(selected, key=lambda g: min(date(p) for p in g['photos']))
     elif sort == 'size':
-        selected = sorted(selected, key=lambda g: sum(p['size'] for p in g['photos']) if g.get('kind') in ('content','variants') else g['potential_bytes'], reverse=True)
+        selected = sorted(selected, key=lambda g: sum(p['size'] for p in g['photos']) if g.get('kind') in ('content','variants','subject') else g['potential_bytes'], reverse=True)
     else:
         selected = sorted(selected, key=lambda g: len(g['photos']), reverse=True)
     start = max(0, page - 1) * 20

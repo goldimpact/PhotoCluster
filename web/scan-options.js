@@ -8,6 +8,7 @@
     strong:I18n.t('增强近重复：在快速匹配之外增加局部特征和几何对齐，查找任意角度旋转、缩放及拉伸后的高度近似副本；比快速模式开销更高。'),
     relaxed:I18n.t('宽松近重复：使用增强模式的匹配流程，放宽画面差异容忍度，覆盖更多细微变化；更容易混入内容不同的文件，请仔细核对。'),
     variants:I18n.t('找同一画面的改图（同源画面变体）：例如同一张表情包的倒置、加字、裁剪或变形版本。按下方规则扩展识别；同一角色的不同重绘不一定共享原画面。'),
+    subject:I18n.t('自动发现主体（实验）：独立的本地 DINOv2 模型比较整幅画面与局部区域，尝试聚集外观相近的角色或物体。无需选择样例，图片、GIF、视频均参与。它仍可能漏掉跨画风重绘，或混入不同身份，不是已验证的角色身份识别器。'),
   };
   const contentDescriptions={
     '0.84':I18n.t('相近场景：按本地视觉模型归类图片、动画和视频中的相近画面，允许不同片段；不要求来自同一原图。'),
@@ -19,8 +20,10 @@
   function render(){
     const mode=$('mode').value;
     $('contentThresholdLabel').hidden=mode!=='content';$('variantRules').hidden=mode!=='variants';
+    $('subjectThresholdLabel').hidden=mode!=='subject';$('subjectModelHelp').hidden=mode!=='subject';
     $('scanHelp').textContent=(mode==='content'?contentDescriptions[$('contentThreshold').value]:descriptions[mode])||I18n.t('请选择识别方式。');
     if(mode==='content')$('scanHelp').textContent+=I18n.t(' 当前模型比较整幅画面，背景与画风也会影响分组；无法可靠聚齐同一角色的二创、重绘和恶搞图。');
+    if(mode==='subject')$('scanHelp').textContent+=({'0.65':I18n.t(' 当前门槛更宽：容忍更多外观变化，也会增加误分组。'),'0.72':I18n.t(' 当前为均衡门槛：建议先检查结果，再调整。'),'0.80':I18n.t(' 当前门槛更严：减少误分组，也可能把同一主体分散。')}[$('subjectThreshold').value]||'');
     if(mode==='variants')$('scanHelp').textContent+=I18n.t(' 当前扩展：')+ruleText(rules())+(I18n.language==='en'?'.':'。');
     if(['strong','strict','relaxed'].includes(mode))$('scanHelp').textContent+=I18n.t(' 动画使用严格的时间轴抽样验证；非完全相同的视频需使用同源或语义模式。');
     $('scanStrategyHelp').textContent=$('scanStrategy').value==='force'
@@ -28,7 +31,7 @@
       :I18n.t('扫描方式：增量更新，先同步目录，复用未变化的特征和兼容的比较结果。改变规则会按新组合重新归类，无须强制全量重算。');
   }
   try{const saved=JSON.parse(localStorage.getItem('photocluster.variantRules')||'null');for(const [k,id] of Object.entries(ids))if(typeof saved?.[k]==='boolean')$(id).checked=saved[k];}catch{}
-  for(const id of ['mode','contentThreshold','scanStrategy'])$(id).addEventListener('change',render);
+  for(const id of ['mode','contentThreshold','subjectThreshold','scanStrategy'])$(id).addEventListener('change',render);
   for(const id of Object.values(ids))$(id).addEventListener('change',()=>{try{localStorage.setItem('photocluster.variantRules',JSON.stringify(rules()));}catch{}render();});
   window.ScanOptions={rules,ruleText,render,setBusy(busy){$('variantRules').disabled=busy;}};
   render();

@@ -3,6 +3,9 @@ import json
 import threading
 import os
 import sqlite3
+import hashlib
+from functools import lru_cache
+from contextlib import closing
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -12,18 +15,37 @@ from PIL import Image, ImageOps
 from .config import MODEL
 VERSION='clip-vit-b32-int8-v1'
 _session=None
+_session_identity=None
 _lock=threading.Lock()
 
 
+@lru_cache(maxsize=8)
+def _file_hash(path, size, modified, changed):
+    with open(path, 'rb') as f:
+        return hashlib.file_digest(f, 'sha256').hexdigest()
+
+
+def file_identity(path):
+    if not path.exists():return 'missing'
+    info=path.stat()
+    return _file_hash(str(path.resolve()), info.st_size, info.st_mtime_ns, info.st_ctime_ns)
+
+
+def model_identity():
+    return VERSION+':'+file_identity(MODEL)
+
+
 def session():
-    global _session
+    global _session, _session_identity
+    identity=model_identity()
     with _lock:
-        if _session is None:
+        if _session is None or _session_identity!=identity:
             if not MODEL.exists():raise RuntimeError('内容模型未安装，请运行 scripts/setup_semantic.py')
             import onnxruntime as ort
             ort.disable_telemetry_events()
             options=ort.SessionOptions();options.intra_op_num_threads=4;options.inter_op_num_threads=1
             _session=ort.InferenceSession(str(MODEL),sess_options=options,providers=['CPUExecutionProvider'])
+            _session_identity=identity
         return _session
 
 
@@ -52,8 +74,15 @@ def ensure_embeddings(photo,thumbs,force=False):
     target=Path(thumbs)/(photo['key']+'.clip.npz')
     if not force and target.exists():
         with np.load(target) as cache:
-            if str(cache['version'])==VERSION and str(cache['sha256'])==photo['sha256']:
+            if str(cache['version'])==model_identity() and str(cache['sha256'])==photo['sha256']:
                 return cache['vectors']
+    images=frame_images(photo,thumbs)
+    vectors=embeddings(images)
+    np.savez_compressed(target,vectors=vectors,version=model_identity(),sha256=photo['sha256'])
+    return vectors
+
+
+def frame_images(photo,thumbs):
     if photo.get('frame_path') and Path(photo['frame_path']).exists():
         with np.load(photo['frame_path']) as archive:frames=archive['frames']
         images=[Image.fromarray(frame) for frame in frames]
@@ -63,9 +92,7 @@ def ensure_embeddings(photo,thumbs,force=False):
         with Image.open(Path(thumbs)/(photo['key']+'.jpg')) as cover:images.insert(0,cover.convert('RGB'))
     else:
         with Image.open(Path(thumbs)/(photo['key']+'.jpg')) as image:images=[image.convert('RGB')]
-    vectors=embeddings(images)
-    np.savez_compressed(target,vectors=vectors,version=VERSION,sha256=photo['sha256'])
-    return vectors
+    return images
 
 
 def similarity(a,b):
@@ -79,13 +106,14 @@ def similarity(a,b):
 def load_vectors(ordered,thumbs,progress,cancelled,force):
     """One bulk DB read replaces thousands of zip/file opens on warm scans."""
     database=Path(thumbs)/'embeddings.sqlite3'
-    with sqlite3.connect(database,timeout=30) as con:
+    identity=model_identity()
+    with closing(sqlite3.connect(database,timeout=30)) as con, con:
         con.execute('CREATE TABLE IF NOT EXISTS embeddings (key TEXT PRIMARY KEY, sha TEXT, version TEXT, vector BLOB)')
         cached={} if force else {key:(sha,version,blob) for key,sha,version,blob in con.execute('SELECT * FROM embeddings')}
         vectors=[None]*len(ordered);missing=[]
         for i,p in enumerate(ordered):
             row=cached.get(p['key'])
-            if row and row[0]==p['sha256'] and row[1]==VERSION:
+            if row and row[0]==p['sha256'] and row[1]==identity:
                 vectors[i]=np.frombuffer(row[2],np.float32).reshape(-1,512)
             else:missing.append((i,p))
         done=len(ordered)-len(missing)
@@ -106,7 +134,7 @@ def load_vectors(ordered,thumbs,progress,cancelled,force):
             results.extend(read(x) for x in absent)
             for i,v in results:
                 vectors[i]=v;p=ordered[i]
-                con.execute('INSERT OR REPLACE INTO embeddings VALUES (?,?,?,?)',(p['key'],p['sha256'],VERSION,v.astype(np.float32).tobytes()))
+                con.execute('INSERT OR REPLACE INTO embeddings VALUES (?,?,?,?)',(p['key'],p['sha256'],identity,v.astype(np.float32).tobytes()))
             con.commit();done+=len(chunk)
             if progress:progress(done,len(ordered),'embedding')
     return vectors

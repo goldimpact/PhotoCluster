@@ -38,6 +38,12 @@ across formats. Related content does not imply a common original. Both approache
 require each group member to match its representative; they do not form unbounded
 transitive chains. Candidate caps and frame sampling trade recall for bounded cost.
 
+Experimental subject mode uses a separately pinned DINOv2 Small INT8 encoder and
+whole-image plus overlapping patch-region similarities, with bounded matrix blocks.
+It accepts no examples and proposes automatic groups. It is not a specialized
+character identity classifier; cross-style fan-art accuracy is unvalidated.
+See [subject grouping](SUBJECT-GROUPING.md) for the exact score and limitations.
+
 ## Caches and publication
 
 The private `data/` directory stores the inventory, thumbnails, recovered frames,
@@ -52,6 +58,16 @@ Result signatures include scope, mode, threshold, media set, algorithm version a
 selected rules. Positive and negative geometry comparisons are directional and
 versioned separately by rule combination. UI language is not part of these keys.
 Changing recognition/model semantics requires reviewing all affected version keys.
+CLIP and DINOv2 vectors and result signatures include the model file SHA-256 and
+feature version. Previously saved results remain visible until a scan publishes
+new ones; a model change prevents reuse in a new scan but does not erase that view.
+
+The cache panel uses an allowlisted local inventory and expiring single-use cleanup
+previews. Cleanup shares the service lock with phone operations and rejects active
+scans/syncs. It invalidates pending phone-operation plans and clears dependent views.
+Models, settings, journals, unknown files and other instances remain untouched.
+No phone command is used during cleanup. SQLite tables are cleared and compacted
+through SQLite rather than unlinking its live database.
 
 Scans publish only a complete new result. Stopped/failed scans retain completed
 feature work and previous results with explicit UI labeling. Ungrouped media are

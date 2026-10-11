@@ -105,7 +105,7 @@ class Service:
                         for p in group['photos']:
                             p['modified'] = by_key[p['key']]['modified']
                             p['taken'] = by_key[p['key']].get('taken', 0)
-                        group['potential_bytes'] = 0 if group.get('kind') in ('content','variants') else sum(p['size'] for p in group['photos'][1:])
+                        group['potential_bytes'] = 0 if group.get('kind') in ('content','variants','subject') else sum(p['size'] for p in group['photos'][1:])
                     self.normalize_groups()
                     self.result['summary'].update(groups=len(self.result['groups']),
                         grouped_photos=sum(len(g['photos']) for g in self.result['groups']),
@@ -134,6 +134,9 @@ class Service:
         with self.lock:
             if self.status['running'] or self.sync_status['running']:
                 raise ValueError('已有扫描正在运行')
+            if mode=='subject':
+                from . import subject
+                if not subject.MODEL.exists():raise ValueError('请先安装本地主体模型')
             serial = serial or self.catalog['serial']
             if not serial:
                 raise ValueError('请先刷新手机相册')
@@ -182,6 +185,9 @@ class Service:
             # Match reuse applies only to an identical input set, mode, scope,
             # and algorithm version. It never suppresses fresh-file scanning.
             signature_fields=[11 if mode=='variants' else 7,mode,scope,threshold,sorted((p['key'],p['sha256']) for p in processed)]
+            if mode in ('content','subject'):
+                from . import semantic, subject
+                signature_fields.append((subject if mode=='subject' else semantic).model_identity())
             if rules is not None:signature_fields.append(rules)
             signature = hashlib.sha256(json.dumps(signature_fields).encode()).hexdigest()
             reusable = self.read_json('match-cache.json', {})
@@ -200,15 +206,17 @@ class Service:
                     rate = done / seconds if seconds else 0
                     self.update(done=done, total=total, phase_seconds=round(seconds, 1),
                                 rate=round(rate, 1), eta_seconds=round((total-done)/rate) if rate else None)
-                if mode=='content':
-                    from . import semantic
+                if mode in ('content','subject'):
+                    from . import semantic, subject
                     stage={'name':None,'started':time.perf_counter()}
                     def content_report(done,total,phase):
                         if stage['name']!=phase:stage.update(name=phase,started=time.perf_counter())
                         seconds=time.perf_counter()-stage['started'];rate=done/max(seconds,.001)
-                        self.update(phase=phase,message='本地模型分析关键帧内容' if phase=='embedding' else '跨格式内容归组')
+                        messages={'embedding':'本地模型分析关键帧内容','content_match':'跨格式内容归组',
+                                  'subject_embedding':'本地主体模型提取整图与区域特征','subject_match':'自动发现主体分组（实验）'}
+                        self.update(phase=phase,message=messages[phase])
                         self.update(done=done,total=total,phase_seconds=round(seconds,1),rate=round(rate,1),eta_seconds=round((total-done)/rate) if rate else None)
-                    groups=semantic.cluster(processed,self.thumbs,scope,threshold,content_report,self.cancel.is_set,force)
+                    groups=(subject if mode=='subject' else semantic).cluster(processed,self.thumbs,scope,threshold,content_report,self.cancel.is_set,force)
                 elif mode == 'variants':
                     from . import variants
                     from .pair_cache import PairCache
@@ -247,7 +255,7 @@ class Service:
             private = ('hashes', 'color', 'aspect', 'signatures', 'feature_path', 'animation_samples','frame_path','variant_path')
             for n, group in enumerate(groups):
                 public = [{k: v for k, v in p.items() if k not in private} for p in group]
-                public_groups.append(dict(id=n+1, photos=public,kind=mode if mode in ('content','variants') else 'duplicate',potential_bytes=0 if mode in ('content','variants') else sum(p['size'] for p in group[1:])))
+                public_groups.append(dict(id=n+1, photos=public,kind=mode if mode in ('content','variants','subject') else 'duplicate',potential_bytes=0 if mode in ('content','variants','subject') else sum(p['size'] for p in group[1:])))
             grouped_keys = {p['key'] for g in groups for p in g}
             ungrouped = [dict({k:v for k,v in p.items() if k not in private},
                              reason='本次扫描范围及模式下未找到匹配', score=0)
