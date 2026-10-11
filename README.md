@@ -48,8 +48,12 @@ tab does not stop the service or interrupt a scan. Confirmed exit stops classifi
 preserves completed caches, waits for active file operations/reads and closes previews.
 An unexpected connection failure is not reported as a successful exit.
 
-Older instances started directly with Uvicorn must be stopped with Ctrl+C in their
-original terminal once before using the new entry points. No unrelated process is killed.
+For older instances, click **Switch to managed startup** in the control window.
+Finish scans and close previews first; do not operate from other tabs during the
+switch. It validates an idle, same-user, same-project Uvicorn process and sends a
+cooperative interrupt, verifies exit, then starts the managed service. No force
+termination is used. If safe migration is unavailable, the window explains a
+system-restart fallback without requiring terminal commands.
 
 Install **Python 3.11+**, [ADB / Platform Tools](https://developer.android.com/tools/releases/platform-tools)
 and [FFmpeg + FFprobe](https://ffmpeg.org/download.html), and add their executables

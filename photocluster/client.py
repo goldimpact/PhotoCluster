@@ -14,7 +14,10 @@ def port_available(base):
         with socket.socket() as sock:
             if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            else:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(('127.0.0.1', address.port))
+            sock.listen(1)
         return True
     except OSError:
         return False

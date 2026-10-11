@@ -37,7 +37,7 @@ test('legacy backend explains why exit is unavailable and never submits shutdown
   const h=await harness(false,true);try{
     const $=id=>h.w.document.getElementById(id);
     assert.match($('serviceState').textContent,/older service/);
-    assert.match($('serviceHint').textContent,/does not upgrade/);
+    assert.match($('serviceHint').textContent,/no need to find/);
     assert.match($('exitService').textContent,/in-app exit unavailable/);
     assert.equal($('exitService').disabled,true);
     assert.ok(h.requests.every(r=>!r.options?.method));

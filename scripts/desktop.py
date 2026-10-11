@@ -33,9 +33,15 @@ COPY = {
     'close_busy': ('当前仍在启动或安装，请等待完成后再退出。', 'Startup or installation is still running. Please wait before exiting.'),
     'installed': ('依赖安装完成，可以点击启动。', 'Dependencies installed. Click Start to continue.'),
     'checking': ('正在检查本地服务…', 'Checking the local service…'),
-    'legacy': ('旧版服务正在运行，无法从此窗口退出', 'An older service is running; this window cannot stop it'),
+    'legacy': ('旧版服务正在运行，可切换到新版', 'An older service is running; managed startup is available'),
     'legacy_note': ('不会重复启动。请先在原启动终端退出旧服务，再用本启动器启动新版。如果找不到原窗口，请联系启动它的人；不要改端口绕过。', 'No second service will be started. Stop the older service in its original terminal, then use this launcher. If you cannot find that window, contact whoever started it; do not change ports to bypass it.'),
     'external_note': ('可以打开现有界面，但不能接管退出。请在原终端退出后，再用本启动器启动。', 'You can open the existing interface, but exit remains with its original terminal. Stop it there before starting from this launcher.'),
+    'migrate': ('切换到新版', 'Switch to managed startup'),
+    'migrating': ('正在正常关闭旧服务并切换，请稍候…', 'Closing the old service normally; please wait…'),
+    'migrate_note': ('点击“切换到新版”，程序会检查旧服务并尝试正常关闭，再打开新版。无需寻找终端；不会强杀进程。', 'Switch to managed startup checks and gracefully closes the old service, then starts the new one. No terminal commands or forced termination.'),
+    'migrate_confirm': ('请先结束分类并关闭媒体预览，切换期间不要在其他页面操作。程序将核实本项目的旧服务，正常关闭后重启；照片和缓存保留。继续？', 'Finish scanning and close media previews first; do not use other tabs during the switch. Verify and gracefully restart this project’s old service, keeping media and caches. Continue?'),
+    'migrate_busy': ('旧服务正在处理任务或没有响应，请完成任务后重试。', 'The old service is busy or not responding. Finish its work and retry.'),
+    'migrate_failed': ('无法安全自动关闭此旧服务，因此没有强杀，也没有启动第二个。可先完成工作并保存其他软件的内容，再通过系统开始菜单重启电脑，之后双击 PhotoCluster.cmd。', 'This old service cannot be safely closed automatically. No force termination or second service was attempted. Finish your work, save other applications, restart from the system menu, then reopen the PhotoCluster launcher.'),
 }
 
 
@@ -65,6 +71,7 @@ def main():
     support=ttk.Frame(frame);support.pack(fill='x',pady=12)
     repair=ttk.Button(support);repair.pack(side='left',padx=(0,8))
     logs=ttk.Button(support);logs.pack(side='left',padx=8)
+    migration=ttk.Button(support);migration.pack(side='left',padx=8)
     address=ttk.Label(frame);address.pack(anchor='w',pady=8)
     def url():
         value=int(port.get())
@@ -75,9 +82,10 @@ def main():
         with build_opener(ProxyHandler({})).open(req,timeout=3) as response:return json.load(response)
     def render(*_):
         title.config(text=text('title'));status.config(text=text(state['phase']))
-        note.config(text=text('legacy_note' if state['phase']=='legacy' else 'external_note' if state['phase']=='external' else 'note'))
+        note.config(text=text('migrate_note' if state['phase'] in ('legacy','external','migrating') else 'note'))
         for button,key in [(start,'start'),(opened,'open'),(stopped,'exit'),(repair,'repair'),(logs,'logs')]:button.config(text=text(key))
         port_label.config(text=text('port'))
+        migration.config(text=text('migrate'),state='normal' if state['phase'] in ('legacy','external') and not state['busy'] else 'disabled')
         active=state['phase'] in ('checking','starting','stopping','running','external','legacy','conflict','unknown') or bool(state['child'])
         start.config(state='disabled' if active or state['busy'] else 'normal')
         repair.config(state='disabled' if active or state['busy'] else 'normal')
@@ -106,6 +114,8 @@ def main():
         except OSError:logfile.close();state.update(phase='failed',log=None)
         render()
     def exit_application(close_window=False):
+        if state['phase']=='migrating':
+            messagebox.showinfo('PhotoCluster',text('migrating'));return
         snapshot=state['snapshot']
         if not snapshot:
             if state['child'] or state['busy']:messagebox.showinfo('PhotoCluster',text('close_busy'));return
@@ -113,7 +123,7 @@ def main():
             return
         if not snapshot.get('managed'):
             if close_window:root.destroy()
-            else:messagebox.showinfo('PhotoCluster',text('legacy_note' if snapshot.get('legacy') else 'external'))
+            else:messagebox.showinfo('PhotoCluster',text('migrate_note'))
             return
         if state['phase']=='stopping':return
         if not messagebox.askyesno('PhotoCluster',text('confirm')):return
@@ -131,6 +141,16 @@ def main():
                 handle.seek(0,2);handle.seek(max(0,handle.tell()-60000));value=handle.read().decode('utf-8','replace')
         except OSError:value='No log / 暂无日志'
         view.insert('1.0',value);view.config(state='disabled')
+    def switch():
+        if state['busy'] or state['phase'] not in ('legacy','external'):return
+        if not messagebox.askyesno('PhotoCluster',text('migrate_confirm')):return
+        number=int(port.get());state.update(busy=True,phase='migrating');render()
+        def perform():
+            try:
+                from photocluster.legacy import migrate
+                migrate(number);events.put(('migrated',None))
+            except Exception as exc:events.put(('migration-error',str(exc)))
+        threading.Thread(target=perform,daemon=True).start()
     def poll():
         if not state['polling']:
             state['polling']=True
@@ -144,8 +164,15 @@ def main():
             kind,data=events.get()
             if kind=='exit':state.update(exit_sent=True,phase='stopping')
             elif kind=='exit-error':state['quit']=False;messagebox.showerror('PhotoCluster',text('request_failed'))
+            elif kind=='migrated':
+                state.update(busy=False,phase='idle',snapshot=None)
+                launch()
+            elif kind=='migration-error':
+                state.update(busy=False,phase='checking')
+                messagebox.showerror('PhotoCluster',text('migrate_busy' if data in ('busy','unavailable') else 'migrate_failed'))
             else:
                 state['polling']=False
+                if state['phase']=='migrating':continue
                 response_base,data=data
                 try:
                     if response_base!=url():continue
@@ -178,6 +205,7 @@ def main():
     start.config(command=lambda:launch());repair.config(command=lambda:launch(True))
     opened.config(command=lambda:webbrowser.open(url()));stopped.config(command=lambda:exit_application())
     logs.config(command=log_window);selector.bind('<<ComboboxSelected>>',render)
+    migration.config(command=switch)
     root.protocol('WM_DELETE_WINDOW',lambda:exit_application(True));render();poll();root.mainloop()
 
 

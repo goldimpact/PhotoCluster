@@ -2,13 +2,13 @@
 import argparse
 import asyncio
 import json
-import socket
 import webbrowser
 from contextlib import contextmanager
 from urllib.request import build_opener, ProxyHandler
 
 from .config import DATA
 from .runtime import Runtime, workspace_id
+from .client import port_available
 
 
 @contextmanager
@@ -42,11 +42,9 @@ def cache_lock():
 
 def existing(port):
     url = f'http://127.0.0.1:{port}'
-    try:
-        with socket.socket() as sock:
-            sock.bind(('127.0.0.1', port))
+    if port_available(url):
         return False
-    except OSError:
+    else:
         try:
             with build_opener(ProxyHandler({})).open(url + '/api/runtime', timeout=2) as response:
                 data = json.load(response)

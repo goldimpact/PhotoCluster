@@ -12,9 +12,13 @@ waits for the scan thread and active requests before Uvicorn exits. It never kil
 PID. `scripts/desktop.py` provides optional Tk controls; CLI and web exit use the same
 managed server. Direct Uvicorn remains externally managed and rejects web shutdown.
 `client.py` recognizes older services without the lifecycle endpoint via their
-page and status API. Those are shown as read-only existing instances: the launcher
-can open the page but cannot start over them or shut them down. A timeout remains
-unknown, not stopped. A legacy instance has no verified workspace or exit token.
+page and status API. A legacy instance has no verified workspace or exit token.
+The desktop's explicit migration action additionally checks the listening PID,
+exact plain Uvicorn command, current user, checkout and data directory, then idle
+scan/sync APIs. A disposable helper sends a cooperative interrupt, never force-kill.
+On Windows the attached console must contain only verified server processes and
+the helper. Unrelated processes, unknown ownership or busy tasks block migration.
+The new instance starts only after process exit and port availability are verified.
 
 ## Recognition
 

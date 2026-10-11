@@ -95,8 +95,11 @@ launches on the same port open the existing matching instance, and a cache lock
 prevents two managed instances from writing the same data directory.
 
 Direct `python -m uvicorn ...` remains an advanced externally managed option. Its
-page explains that exit belongs to the terminal/service manager. The new cache lock
-does not cover old/direct Uvicorn processes: close those before starting a new instance.
+page offers the desktop launcher's **Switch to managed startup** action (or Ctrl+C
+for CLI users). Migration validates process identity and idle status, then requests
+normal exit before starting the new instance. It refuses unsupported supervisor or
+shared-console arrangements rather than forcing termination. The new cache lock
+does not cover old/direct Uvicorn processes: do not bypass them with another port.
 
 ## Cache and network / 缓存与代理
 

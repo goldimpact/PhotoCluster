@@ -48,8 +48,11 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
   Windows adb pull destinations need wslpath conversion. Keep streams binary.
 - server.py/runtime.py own managed startup/exit; desktop.py is optional Tk control.
   Shutdown must wait for admitted requests (including response bodies) and the scan
-  thread, preserve cache writes, and reject new work. Never kill discovered PIDs or
-  infer successful shutdown from a network error. External Uvicorn is not managed.
+  thread, preserve cache writes, and reject new work. Never force-kill discovered
+  PIDs or infer successful shutdown from a network error. Legacy migration requires
+  explicit confirmation, exact listener/user/workspace/command/cache validation,
+  idle scan/sync status, and a cooperative interrupt. On Windows refuse shared
+  consoles containing unrelated processes; never broaden the signal target.
 - Read relevant tests before changing behavior. Keep bounded memory/work queues
   and CPU fallbacks; do not trade recognition thresholds for undocumented speed.
 - If extraction, matching or model semantics change, inspect feature versions,
