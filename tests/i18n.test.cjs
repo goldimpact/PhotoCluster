@@ -147,6 +147,18 @@ test('automatic subject mode sends its own threshold without examples and preser
     assert.equal(body.mode,'subject');assert.equal(body.threshold,.65);assert.equal(body.examples,undefined);
   }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
+test('anime engine survives language reload and sends CCIP threshold, not DINO threshold',async()=>{
+  const h=await app('en',{mode:'subject',subjectEngine:'anime',subjectThreshold:'0.72'});try{
+    const d=h.w.document;h.state.running=false;h.state.phase='idle';await h.w.eval('poll()');
+    assert.match(d.getElementById('scanHelp').textContent,/CCIP/);
+    assert.match(d.getElementById('subjectModelDescription').textContent,/OpenRAIL/);
+    await d.getElementById('scan').onclick();
+    const body=JSON.parse(h.requests.find(r=>r.path==='/api/scan').options.body);
+    assert.equal(body.subject_engine,'anime');assert.equal(body.threshold,1-.17847511429108218);
+    await d.getElementById('installSubjectModel').onclick();
+    assert.ok(h.requests.some(r=>r.path==='/api/subject-model?engine=anime'));
+  }finally{await new Promise(setImmediate);h.dom.window.close();}
+});
 test('language reload restores scope, mode, filters and album selections without starting a scan',async()=>{
   const h=await app('zh',{mode:'content',scope:'album',scanTarget:'selected',contentThreshold:'0.77',groupSort:'oldest',search:'我的照片',selection:{serial:'test-device',paths:[]}});
   try{const d=h.w.document;assert.equal(d.documentElement.lang,'zh-CN');assert.equal(d.getElementById('scope').value,'album');

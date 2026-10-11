@@ -21,6 +21,15 @@ _identity = None
 _lock = threading.Lock()
 
 
+def backend(engine='general'):
+    if engine=='anime':
+        from . import character
+        return character
+    if engine!='general':raise ValueError('Unknown subject engine')
+    import sys
+    return sys.modules[__name__]
+
+
 def model_identity():
     from .semantic import file_identity
     return VERSION + ':' + file_identity(MODEL)

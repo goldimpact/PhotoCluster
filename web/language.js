@@ -1,6 +1,6 @@
 /* Language changes reload the view, never the background service or scan. */
 (()=>{
-  const settings=['scanTarget','scope','mode','scanStrategy','contentThreshold','subjectThreshold','filterKind','groupSort','photoSort','search'];
+  const settings=['scanTarget','scope','mode','scanStrategy','contentThreshold','subjectEngine','subjectThreshold','filterKind','groupSort','photoSort','search'];
   const key='photocluster.languageView';
   window.LanguageSettings={selection:null,filterAlbum:''};
   try{

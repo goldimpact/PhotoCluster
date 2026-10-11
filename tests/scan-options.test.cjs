@@ -30,6 +30,13 @@ test('subject thresholds explain changes without reusing CLIP thresholds',()=>{
     assert.match(h.$('scanHelp').textContent,/无需选择样例/);
   }
 });
+test('character identity uses its own upstream threshold and explains single-character limit',()=>{
+  const h=harness();h.change('mode','subject');h.change('subjectEngine','anime');h.change('subjectThreshold','0.72');
+  assert.match(h.$('scanHelp').textContent,/CCIP/);assert.match(h.$('scanHelp').textContent,/单角色/);
+  assert.ok(Math.abs(h.api.subjectThreshold()-(1-.17847511429108218))<1e-12);
+  h.change('subjectThreshold','0.65');assert.equal(h.api.subjectThreshold(),.78);
+  h.change('subjectEngine','general');assert.equal(h.api.subjectThreshold(),.65);
+});
 test('content threshold explains each choice immediately',()=>{
   const h=harness();h.change('mode','content');
   for(const [v,text] of [['0.77','相近内容与画风'],['0.90','高度相近画面'],['0.84','相近场景']]){

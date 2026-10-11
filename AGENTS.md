@@ -43,6 +43,9 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
 - subject.py is experimental automatic DINOv2 region grouping, not validated
   character identity recognition. Preserve direct-reference checks, zero duplicate
   savings and model SHA/version isolation; do not claim cross-style accuracy without data.
+- character.py adds optional CCIP for single-character anime imagery, not a general
+  identity solution. Preserve upstream preprocessing/distance scale, separate model
+  license and cache identity. Do not gate CCIP matches on DINO or colour equality.
 - cache.py cleanup is local and allowlisted, requires an expiring preview token,
   rejects scans/syncs, shares the operation lock and invalidates pending file plans.
   Keep models, settings, journals, unknown files and other instances; never call ADB.

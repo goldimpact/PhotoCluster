@@ -36,3 +36,15 @@ The optional automatic subject mode uses quantized ONNX weights from
 and verifies SHA-256 before loading. Weights and download metadata remain in the
 ignored local model directory. This general visual encoder is not a specialized
 character identity classifier; the subject grouping mode is experimental.
+
+The optional anime character engine uses
+[deepghs/ccip_onnx](https://huggingface.co/deepghs/ccip_onnx),
+`ccip-caformer-24-randaug-pruned`, derived from [CCIP](https://huggingface.co/deepghs/ccip).
+Upstream declares **OpenRAIL**, not MIT or Apache-2.0. Model terms remain separate
+from PhotoCluster's MIT code license; consult the upstream card before redistributing
+weights. The public repository does not bundle model weights or evaluation images.
+`setup_character.py` pins revision `eb2acdd29af1703388d3d0c04221add322bc9110` and
+checks SHA-256 `4ea118d16496274f4f6e08d3afc768cc592389e8f7f32f8732ce2215c228ac5f`.
+CCIP targets **single-character anime images**, not all objects or group scenes.
+Preprocessing and distance semantics follow the upstream documentation; no
+`imgutils`, PyTorch or remote inference dependency is added.

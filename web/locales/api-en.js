@@ -1,5 +1,10 @@
 /* API display fields only; stored caches, paths and identifiers stay unchanged. */
 window.PhotoClusterApiEnglish = {
+  "请先安装本地动漫角色模型": "Install the local anime character model first",
+  "本地动漫角色模型提取身份特征": "Extracting anime character identity features locally",
+  "按动漫角色身份归组（实验）": "Grouping by anime character identity (experimental)",
+  "动漫角色身份特征相近（CCIP），请人工确认": "Similar anime character identity features (CCIP); review required",
+  "动漫角色组参考": "Anime character group reference",
   "请先安装本地主体模型": "Install the local subject model first",
   "本地主体模型提取整图与区域特征": "Extracting whole-image and region subject features locally",
   "自动发现主体分组（实验）": "Discovering subject groups (experimental)",

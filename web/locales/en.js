@@ -1,5 +1,14 @@
 /* Application copy only. Interpolated filenames and paths are never translated. */
 window.PhotoClusterEnglish = {
+  "角色身份特征": "Character identity features",
+  "角色身份匹配": "Character identity matching",
+  "要归类的主体": "Subject to organize",
+  "通用物体 · DINOv2": "General objects · DINOv2",
+  "动漫角色 · CCIP": "Anime characters · CCIP",
+  "动漫角色 · CCIP（单角色画面）": "Anime characters · CCIP (single-character scenes)",
+  "CCIP 约 150 MB，面向单角色动漫画面训练，使用上游 OpenRAIL 模型许可。首次安装下载公共权重；照片不上传，分析在本机运行。": "CCIP is about 150 MB, trained for single-character anime images, under the upstream OpenRAIL model license. First installation downloads public weights; photos are not uploaded and analysis runs locally.",
+  "DINOv2 约 24 MB，用于通用外观相似，不是角色身份模型。首次安装下载公共权重；照片不上传。": "DINOv2 is about 24 MB, for general visual similarity rather than character identity. First installation downloads public weights; photos are not uploaded.",
+  "动漫角色（CCIP，实验）：按专门训练的角色身份特征比较发型、脸部和服装等外观线索，允许姿态、构图和画风变化；不要求颜色完全一致。无需样例，图片、GIF 和视频抽样帧参与。适合单角色画面，多人同框、动物吉祥物及极端恶搞可能识别不好。均衡档采用上游发布门槛，不代表在你的图库中已验证准确率。": "Anime characters (CCIP, experimental): uses trained identity features representing cues such as hair, faces and clothing, allowing changes in pose, composition and style without requiring identical colors. No examples are required; images, GIFs and sampled video frames participate. Intended for single-character scenes; multiple characters, animal mascots and extreme parodies may work poorly. Balanced uses the upstream threshold, which is not a validated accuracy guarantee for your library.",
   "正在扫描、同步或安装模型，结束后才能清理缓存。": "Wait for scanning, syncing or model installation to finish before clearing caches.",
   "已下载 {0}": "Downloaded {0}",
   "自动发现主体（实验）：": "Discover subjects (experimental): ",

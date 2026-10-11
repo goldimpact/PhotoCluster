@@ -21,7 +21,13 @@
     const mode=$('mode').value;
     $('contentThresholdLabel').hidden=mode!=='content';$('variantRules').hidden=mode!=='variants';
     $('subjectThresholdLabel').hidden=mode!=='subject';$('subjectModelHelp').hidden=mode!=='subject';
+    $('subjectEngineLabel').hidden=mode!=='subject';
+    const anime=$('subjectEngine').value==='anime';
+    $('subjectModelDescription').textContent=anime
+      ?I18n.t('CCIP 约 150 MB，面向单角色动漫画面训练，使用上游 OpenRAIL 模型许可。首次安装下载公共权重；照片不上传，分析在本机运行。')
+      :I18n.t('DINOv2 约 24 MB，用于通用外观相似，不是角色身份模型。首次安装下载公共权重；照片不上传。');
     $('scanHelp').textContent=(mode==='content'?contentDescriptions[$('contentThreshold').value]:descriptions[mode])||I18n.t('请选择识别方式。');
+    if(mode==='subject'&&anime)$('scanHelp').textContent=I18n.t('动漫角色（CCIP，实验）：按专门训练的角色身份特征比较发型、脸部和服装等外观线索，允许姿态、构图和画风变化；不要求颜色完全一致。无需样例，图片、GIF 和视频抽样帧参与。适合单角色画面，多人同框、动物吉祥物及极端恶搞可能识别不好。均衡档采用上游发布门槛，不代表在你的图库中已验证准确率。');
     if(mode==='content')$('scanHelp').textContent+=I18n.t(' 当前模型比较整幅画面，背景与画风也会影响分组；无法可靠聚齐同一角色的二创、重绘和恶搞图。');
     if(mode==='subject')$('scanHelp').textContent+=({'0.65':I18n.t(' 当前门槛更宽：容忍更多外观变化，也会增加误分组。'),'0.72':I18n.t(' 当前为均衡门槛：建议先检查结果，再调整。'),'0.80':I18n.t(' 当前门槛更严：减少误分组，也可能把同一主体分散。')}[$('subjectThreshold').value]||'');
     if(mode==='variants')$('scanHelp').textContent+=I18n.t(' 当前扩展：')+ruleText(rules())+(I18n.language==='en'?'.':'。');
@@ -31,8 +37,12 @@
       :I18n.t('扫描方式：增量更新，先同步目录，复用未变化的特征和兼容的比较结果。改变规则会按新组合重新归类，无须强制全量重算。');
   }
   try{const saved=JSON.parse(localStorage.getItem('photocluster.variantRules')||'null');for(const [k,id] of Object.entries(ids))if(typeof saved?.[k]==='boolean')$(id).checked=saved[k];}catch{}
-  for(const id of ['mode','contentThreshold','subjectThreshold','scanStrategy'])$(id).addEventListener('change',render);
+  for(const id of ['mode','contentThreshold','subjectThreshold','subjectEngine','scanStrategy'])$(id).addEventListener('change',render);
   for(const id of Object.values(ids))$(id).addEventListener('change',()=>{try{localStorage.setItem('photocluster.variantRules',JSON.stringify(rules()));}catch{}render();});
-  window.ScanOptions={rules,ruleText,render,setBusy(busy){$('variantRules').disabled=busy;}};
+  function subjectThreshold(){
+    const preset=$('subjectThreshold').value;
+    return $('subjectEngine').value==='anime'?({'0.65':.78,'0.72':1-.17847511429108218,'0.80':.85}[preset]??1-.17847511429108218):Number(preset);
+  }
+  window.ScanOptions={rules,ruleText,render,subjectThreshold,setBusy(busy){$('variantRules').disabled=busy;}};
   render();
 })();

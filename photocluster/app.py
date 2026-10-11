@@ -117,12 +117,13 @@ class Scan(BaseModel):
     serial: str | None = None
     threshold: float = Field(default=.84,ge=.65,le=.98)
     rules: VariantRules = Field(default_factory=VariantRules)
+    subject_engine: Literal['general','anime'] = 'general'
 
 
 @app.post('/api/scan')
 def scan(body: Scan):
     try:
-        return service.start(body.albums, body.mode, body.scope, body.limit, body.force, body.all_albums, body.serial,body.threshold,body.rules.model_dump())
+        return service.start(body.albums, body.mode, body.scope, body.limit, body.force, body.all_albums, body.serial,body.threshold,body.rules.model_dump(),subject_engine=body.subject_engine)
     except ValueError as exc:
         raise HTTPException(409, str(exc))
 
@@ -179,13 +180,18 @@ def cache_clear(body: CacheToken):
 
 
 @app.get('/api/subject-model')
-def subject_model():
-    from .subject import MODEL, VERSION
-    return dict(installed=MODEL.exists(), version=VERSION)
+def subject_model(engine: Literal['general','anime']='general'):
+    from .subject import backend
+    encoder=backend(engine)
+    return dict(installed=encoder.MODEL.exists(), version=encoder.VERSION,engine=engine)
+
+
+class SubjectModelInstall(BaseModel):
+    engine: Literal['general','anime']='general'
 
 
 @app.post('/api/subject-model/install')
-def install_subject_model():
+def install_subject_model(body: SubjectModelInstall):
     with service.lock:
         if service.status['running'] or service.sync_status['running']:
             raise HTTPException(409, '请等待扫描或同步结束后再安装模型')
@@ -193,7 +199,10 @@ def install_subject_model():
         service.update(running=True,phase='model_install',message='下载公共主体模型，不上传媒体',done=0,total=0,downloaded_bytes=0,started_at=time.time())
         def work():
             try:
-                from scripts.setup_subject import install
+                if body.engine=='anime':
+                    from scripts.setup_character import install
+                else:
+                    from scripts.setup_subject import install
                 def progress(count):
                     if service.cancel.is_set():raise ValueError('模型下载已取消')
                     service.update(downloaded_bytes=count)

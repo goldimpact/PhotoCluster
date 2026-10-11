@@ -30,6 +30,11 @@ phone folder. You cannot add files to virtual groups.
   images, GIFs and sampled video frames; character identities across radically
   different fan art remain unvalidated. Choose this mode and use **Install / check
   subject model** to download its pinned model (about 24 MB). Classification stays offline.
+  This mode also offers **Anime characters · CCIP** (about 150 MB, upstream OpenRAIL),
+  trained for identity similarity in single-character anime images across poses and
+  styles without requiring identical colors. Multiple characters, animal mascots
+  and extreme parodies may work poorly. It is not general object identity recognition.
+  Engines have separate versioned feature caches; incremental scanning is sufficient.
 - **Local cache** in the scan panel shows storage usage and offers confirmed cleanup
   of results, analysis, or the whole media inventory. Phone originals, installed
   models, settings and operation journals are kept. Model/version changes invalidate

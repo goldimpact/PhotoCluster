@@ -129,14 +129,15 @@ class Service:
                     changes=self.catalog.get('changes', {}),
                     count=len(self.catalog['photos']), albums=sorted(albums.values(), key=lambda a: -a['count']))
 
-    def start(self, albums, mode, scope, limit, force=False, all_albums=False, serial=None, threshold=.84, rules=None):
+    def start(self, albums, mode, scope, limit, force=False, all_albums=False, serial=None, threshold=.84, rules=None, subject_engine='general'):
         rules=normalize_rules(rules) if mode=='variants' else None
         with self.lock:
             if self.status['running'] or self.sync_status['running']:
                 raise ValueError('已有扫描正在运行')
             if mode=='subject':
                 from . import subject
-                if not subject.MODEL.exists():raise ValueError('请先安装本地主体模型')
+                encoder=subject.backend(subject_engine)
+                if not encoder.MODEL.exists():raise ValueError('请先安装本地动漫角色模型' if subject_engine=='anime' else '请先安装本地主体模型')
             serial = serial or self.catalog['serial']
             if not serial:
                 raise ValueError('请先刷新手机相册')
@@ -145,22 +146,22 @@ class Service:
             self.cancel.clear()
             self.status = dict(running=True, phase='refresh', message='同步手机最新媒体目录', done=0,
                                total=0, errors=0, cached=0, started_at=time.time(), current='', force=force,mode=mode,rules=rules)
-            self.scan_thread = threading.Thread(target=self.scan_request, args=(serial, albums, mode, scope, limit, force, all_albums, threshold,rules), daemon=True)
+            self.scan_thread = threading.Thread(target=self.scan_request, args=(serial, albums, mode, scope, limit, force, all_albums, threshold,rules,subject_engine), daemon=True)
             self.scan_thread.start()
             return dict(self.status)
 
-    def scan_request(self, serial, albums, mode, scope, limit, force, all_albums, threshold=.84,rules=None):
+    def scan_request(self, serial, albums, mode, scope, limit, force, all_albums, threshold=.84,rules=None,subject_engine='general'):
         try:
             self.refresh(serial, internal=True)
             photos = [dict(p) for p in self.catalog['photos'] if all_albums or p['album'] in albums]
             if limit:
                 photos = photos[:limit]
             self.update(phase='scan', total=len(photos), message='重新读取全部所选原图' if force else '增量扫描：复用未变化的图片特征')
-            self.worker(serial, photos, mode, scope, force=force,threshold=threshold,rules=rules)
+            self.worker(serial, photos, mode, scope, force=force,threshold=threshold,rules=rules,subject_engine=subject_engine)
         except Exception as exc:
             self.update(running=False, phase='error', message=str(exc))
 
-    def worker(self, serial, photos, mode, scope, force=False,threshold=.84,rules=None):
+    def worker(self, serial, photos, mode, scope, force=False,threshold=.84,rules=None,subject_engine='general'):
         rules=normalize_rules(rules) if mode=='variants' else None
         errors, processed = [], []
         started = time.perf_counter()
@@ -187,7 +188,7 @@ class Service:
             signature_fields=[11 if mode=='variants' else 7,mode,scope,threshold,sorted((p['key'],p['sha256']) for p in processed)]
             if mode in ('content','subject'):
                 from . import semantic, subject
-                signature_fields.append((subject if mode=='subject' else semantic).model_identity())
+                signature_fields.append((subject.backend(subject_engine) if mode=='subject' else semantic).model_identity())
             if rules is not None:signature_fields.append(rules)
             signature = hashlib.sha256(json.dumps(signature_fields).encode()).hexdigest()
             reusable = self.read_json('match-cache.json', {})
@@ -213,10 +214,11 @@ class Service:
                         if stage['name']!=phase:stage.update(name=phase,started=time.perf_counter())
                         seconds=time.perf_counter()-stage['started'];rate=done/max(seconds,.001)
                         messages={'embedding':'本地模型分析关键帧内容','content_match':'跨格式内容归组',
-                                  'subject_embedding':'本地主体模型提取整图与区域特征','subject_match':'自动发现主体分组（实验）'}
+                                  'subject_embedding':'本地主体模型提取整图与区域特征','subject_match':'自动发现主体分组（实验）',
+                                  'character_embedding':'本地动漫角色模型提取身份特征','character_match':'按动漫角色身份归组（实验）'}
                         self.update(phase=phase,message=messages[phase])
                         self.update(done=done,total=total,phase_seconds=round(seconds,1),rate=round(rate,1),eta_seconds=round((total-done)/rate) if rate else None)
-                    groups=(subject if mode=='subject' else semantic).cluster(processed,self.thumbs,scope,threshold,content_report,self.cancel.is_set,force)
+                    groups=(subject.backend(subject_engine) if mode=='subject' else semantic).cluster(processed,self.thumbs,scope,threshold,content_report,self.cancel.is_set,force)
                 elif mode == 'variants':
                     from . import variants
                     from .pair_cache import PairCache
@@ -269,6 +271,7 @@ class Service:
                            scan_seconds=round(scan_seconds, 2), match_seconds=round(match_seconds, 2),
                            total_seconds=round(time.perf_counter()-started, 2))
             result = dict(groups=public_groups, ungrouped=ungrouped, summary=summary)
+            if mode=='subject':summary['subject_engine']=subject_engine
             self.save('groups.json', result)
             with self.lock:
                 self.result = result

@@ -43,6 +43,11 @@ whole-image plus overlapping patch-region similarities, with bounded matrix bloc
 It accepts no examples and proposes automatic groups. It is not a specialized
 character identity classifier; cross-style fan-art accuracy is unvalidated.
 See [subject grouping](SUBJECT-GROUPING.md) for the exact score and limitations.
+The same UI mode can select the optional CCIP anime engine, with its own upstream
+preprocessing, identity embedding and distance scale. Single-character anime is its
+documented domain; it does not detect separate characters in group scenes. Engine
+selection persists through language reloads and is recorded in result summaries.
+CCIP vectors use `characters.sqlite3`; model identity separates result-cache reuse.
 
 ## Caches and publication
 
