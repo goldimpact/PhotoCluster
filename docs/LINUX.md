@@ -80,6 +80,24 @@ distributed between operating systems.
 ADB 服务或重新连接设备。也可自行使用 usbipd-win 透传 USB，再走原生 Linux ADB，
 但那是不同的连接配置，不能把 adb.exe 实测等同于原生 USB 透传已验证。
 
+## Starting and quitting / 启动与退出
+
+With a graphical Linux session or WSLg and Python Tk support, `bash PhotoCluster.sh`
+opens the control window. Ubuntu system Python typically needs `python3-tk`; a
+version-manager Python needs a Tk-enabled build of that interpreter. The window
+has Start/Open/Exit buttons and does not require a system tray implementation.
+
+`bash start.sh --no-install` also starts the managed service and opens the browser
+when ready; add `--no-browser` for remote/headless use. Quit using the page's **Exit
+PhotoCluster** button or Ctrl+C in the launching terminal. The managed server waits
+for active work to finish safely; closing a browser tab leaves it running. Repeated
+launches on the same port open the existing matching instance, and a cache lock
+prevents two managed instances from writing the same data directory.
+
+Direct `python -m uvicorn ...` remains an advanced externally managed option. Its
+page explains that exit belongs to the terminal/service manager. The new cache lock
+does not cover old/direct Uvicorn processes: close those before starting a new instance.
+
 ## Cache and network / 缓存与代理
 
 Defaults: Windows/native Linux use `data/`; WSL uses `data/wsl/`. Windows caches

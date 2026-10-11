@@ -15,6 +15,7 @@ def main():
     parser.add_argument('--install-gpu', action='store_true')
     parser.add_argument('--no-install', action='store_true', help='Use existing dependencies without network installation')
     parser.add_argument('--check', action='store_true', help='Check tools and device availability, then exit')
+    parser.add_argument('--no-browser', action='store_true', help='Do not open a browser automatically')
     parser.add_argument('--accelerator', choices=['auto', 'cpu'], default='auto')
     parser.add_argument('--port', type=int, default=8765)
     parser.add_argument('--adb', help='ADB executable path; accepts Windows adb.exe under WSL')
@@ -55,7 +56,16 @@ def main():
     if args.check:
         return
     print(f'PhotoCluster: http://127.0.0.1:{args.port}', flush=True)
-    run([python, '-m', 'uvicorn', 'photocluster.app:app', '--host', '127.0.0.1', '--port', args.port])
+    command = [python, '-m', 'photocluster.server']
+    if args.no_browser:
+        command.append('--no-browser')
+    # Child handles Ctrl+C gracefully; keep its parent alive until cleanup completes.
+    import signal
+    previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    try:
+        run([*command, '--host', '127.0.0.1', '--port', args.port])
+    finally:
+        signal.signal(signal.SIGINT, previous)
 
 
 if __name__ == '__main__':

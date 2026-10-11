@@ -30,6 +30,23 @@ Linux 与 WSL 的启动、连接方式及验证边界见 [Linux / WSL 指南](do
 
 ## 启动（Windows）
 
+### 普通用户：控制窗口
+
+准备好下述 Python、ADB、FFmpeg 后，双击根目录 **PhotoCluster.cmd**。
+控制窗口提供「启动并打开」「打开界面」「退出程序」、依赖安装 / 修复、日志及语言切换。
+首次启动会安装 Python 依赖；以后使用已有环境，不会每次启动都下载依赖。
+显示“正在运行”后才打开浏览器，退出后显示“尚未启动”。
+
+网页顶部也有运行状态和「退出 PhotoCluster」。**关闭标签页不会退出后台服务**，
+这是为了避免误关页面中断分类。点击退出并确认后，会停止分类、保存已完成缓存，
+等待已有删除 / 移动 / 读取结束，再关闭服务。没有“强杀”按钮。网页断线会说明是否
+曾收到退出确认，不会把普通网络失败当成成功退出。
+
+如果是以前直接执行 Uvicorn 命令启动的实例，需要在原终端按一次 Ctrl+C，再使用新入口；
+新版不会擅自终止旧进程或占用同端口的其他软件。
+
+### 命令行用户
+
 安装 **Python 3.11+**、[ADB / Platform Tools](https://developer.android.com/tools/releases/platform-tools)
 和 [FFmpeg + FFprobe](https://ffmpeg.org/download.html)，并将可执行文件加入 `PATH`。
 手机开启 USB 调试，通过 USB 连接并授权电脑；用 `adb devices` 检查连接。
@@ -38,6 +55,8 @@ Linux 与 WSL 的启动、连接方式及验证边界见 [Linux / WSL 指南](do
 git clone https://github.com/goldimpact/PhotoCluster.git
 cd PhotoCluster
 .\start.ps1
+# 已有依赖，不安装且不自动打开浏览器：
+.\start.ps1 -NoInstall -NoBrowser
 ```
 
 打开 **http://127.0.0.1:8765**。点击「同步目录」读取相册，点击「同步并分类」开始。
@@ -61,13 +80,15 @@ CPU INT8，GPU 用于部分检索和特征匹配，不能保证每个阶段都�
 已有依赖时，可直接启动，跳过安装检查：
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn photocluster.app:app --host 127.0.0.1 --port 8765
+.\start.ps1 -NoInstall
 ```
 
 Linux 安装 Python 3.11+、ADB、FFmpeg 后，运行 `bash start.sh --check` 完成安装检查，
 再用 `bash start.sh --no-install` 启动。Linux 使用独立的 `.venv-linux` 环境；WSL 默认
 缓存位于 `data/wsl/`，可复用 Windows 已连接的 `adb.exe`。Windows 已占用 8765 端口时，
 WSL 加上 `--port 8766`。Ubuntu 22.04 的 Python 升级、USB 权限与代理差异详见指南。
+Linux 图形桌面（或配置了 WSLg 的 WSL）也可运行 `bash PhotoCluster.sh` 打开控制窗口，
+需要当前 Python 带有 Tk。没有图形环境时用 `bash start.sh`，网页仍能退出服务。
 `requirements-lock.txt` 是实测 Windows Python 3.11
 CPU 依赖快照，GPU 依赖单独列出。日常使用不需要 Node/npm。
 

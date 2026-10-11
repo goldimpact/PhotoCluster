@@ -43,7 +43,7 @@ $('refresh').onclick=()=>action(async()=>{
 $('device').onchange=()=>{$('refresh').click();};
 $('scan').onclick=()=>action(async()=>{const state=await api('scan',{albums:[...selected],mode:$('mode').value,scope:$('scope').value,force:$('scanStrategy').value==='force',all_albums:$('scanTarget').value==='all',serial:$('device').value||null,threshold:Number($('contentThreshold').value),...($('mode').value==='variants'?{rules:window.ScanOptions.rules()}:{})});showScanState(state);await poll();});
 $('stop').onclick=()=>action(async()=>{const d=await api('stop',{});$('statusText').textContent=d.message;});
-async function poll(){if(pollBusy)return;pollBusy=true;try{
+async function poll(){if(pollBusy||window.ServiceControl?.stopping)return;pollBusy=true;try{
   const s=await api('status');
   scanState=s;renderResultStatus();
   $('scan').disabled=s.running||syncBusy;$('refresh').disabled=s.running||syncBusy;$('stop').hidden=!s.running;

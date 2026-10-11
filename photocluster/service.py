@@ -29,6 +29,7 @@ class Service:
             con.execute('DELETE FROM skipped WHERE error=?', ('动态图片暂不比较，避免只比较第一帧',))
         self.lock = threading.RLock()
         self.cancel = threading.Event()
+        self.scan_thread = None
         self.status = dict(running=False, phase='idle', message='连接手机后刷新相册', done=0, total=0, errors=0)
         self.catalog = self.read_json('catalog.json', {'serial': None, 'photos': []})
         self.result = self.read_json('groups.json', {'groups': [], 'summary': None})
@@ -141,7 +142,8 @@ class Service:
             self.cancel.clear()
             self.status = dict(running=True, phase='refresh', message='同步手机最新媒体目录', done=0,
                                total=0, errors=0, cached=0, started_at=time.time(), current='', force=force,mode=mode,rules=rules)
-            threading.Thread(target=self.scan_request, args=(serial, albums, mode, scope, limit, force, all_albums, threshold,rules), daemon=True).start()
+            self.scan_thread = threading.Thread(target=self.scan_request, args=(serial, albums, mode, scope, limit, force, all_albums, threshold,rules), daemon=True)
+            self.scan_thread.start()
             return dict(self.status)
 
     def scan_request(self, serial, albums, mode, scope, limit, force, all_albums, threshold=.84,rules=None):

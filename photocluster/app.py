@@ -3,6 +3,8 @@ import io
 import re
 import hashlib
 import threading
+import secrets
+from contextlib import asynccontextmanager
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
@@ -15,12 +17,39 @@ from . import adb
 from .service import ROOT, Service
 from .operations import Operations
 from .video import VideoLeases
+from .runtime import Runtime, AdmissionMiddleware
 
-app = FastAPI(title='PhotoCluster')
+@asynccontextmanager
+async def lifespan(app):
+    yield
+    for token in list(video_leases.items):
+        video_leases.release(token)
+
+
+app = FastAPI(title='PhotoCluster', lifespan=lifespan)
+app.state.runtime = Runtime()
+app.add_middleware(AdmissionMiddleware, owner=app)
 service = Service()
 operations = Operations(service)
 original_slots = threading.BoundedSemaphore(2)
 video_leases=VideoLeases()
+
+
+@app.get('/api/runtime')
+def runtime_status():
+    return JSONResponse(app.state.runtime.snapshot(), headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/runtime/exit')
+def runtime_exit(request: Request):
+    runtime = app.state.runtime
+    if not secrets.compare_digest(request.headers.get('X-PhotoCluster-Token', ''), runtime.token):
+        raise HTTPException(403, 'Invalid lifecycle token')
+    if not runtime.managed:
+        raise HTTPException(409, 'This instance is managed by an external command.')
+    runtime.request_exit()
+    service.cancel.set()
+    return {'stopping': True}
 
 
 @app.middleware('http')

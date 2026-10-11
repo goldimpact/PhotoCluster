@@ -4,6 +4,14 @@ The application is a loopback FastAPI service with a static, dependency-free
 production UI. Android MediaStore supplies the inventory; ADB supplies originals
 and explicitly confirmed file operations. There is no hosted inference service.
 
+`photocluster.server` owns the managed lifecycle and per-cache OS file lock.
+`/api/runtime` identifies a process/workspace; `/api/runtime/exit` requires a random
+process-local header token in addition to Host/Origin guards. Admission stops new
+work, counts complete streaming responses, cancels classification cooperatively and
+waits for the scan thread and active requests before Uvicorn exits. It never kills a
+PID. `scripts/desktop.py` provides optional Tk controls; CLI and web exit use the same
+managed server. Direct Uvicorn remains externally managed and rejects web shutdown.
+
 ## Recognition
 
 SHA-256 identifies identical files. Near-duplicate modes combine oriented perceptual

@@ -14,3 +14,4 @@ html[lang="en"] .scan-settings{flex-wrap:wrap}
 html[lang="en"] .scan-settings label{min-width:180px}
 html[lang="en"] .operation-bar{flex-wrap:wrap}
 header{flex-wrap:wrap;gap:16px}
+.service-control{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;margin-top:18px;background:#fff;border:1px solid #dce5d4;border-radius:8px}.service-control strong{font-size:13px;color:#345b42}.service-control p{margin:5px 0 0;color:#6e7a6a;font-size:12px;line-height:1.6}.service-control button{flex-shrink:0}#exitDialog{max-width:520px}#exitDialog p{line-height:1.8}

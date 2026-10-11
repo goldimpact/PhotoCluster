@@ -37,6 +37,20 @@ not duplicate probabilities. Nothing is deleted automatically.
 
 ## Quick start (Windows)
 
+For a graphical workflow, after installing the prerequisites below, double-click
+**PhotoCluster.cmd**. The bilingual control window offers **Start and open**, **Open
+interface**, **Exit application**, dependency repair and local logs. Initial setup
+installs dependencies; later launches reuse the environment. The browser opens only
+after the service is ready. The window reports when its process has stopped.
+
+The page also shows connection status and **Exit PhotoCluster**. Closing a browser
+tab does not stop the service or interrupt a scan. Confirmed exit stops classification,
+preserves completed caches, waits for active file operations/reads and closes previews.
+An unexpected connection failure is not reported as a successful exit.
+
+Older instances started directly with Uvicorn must be stopped with Ctrl+C in their
+original terminal once before using the new entry points. No unrelated process is killed.
+
 Install **Python 3.11+**, [ADB / Platform Tools](https://developer.android.com/tools/releases/platform-tools)
 and [FFmpeg + FFprobe](https://ffmpeg.org/download.html), and add their executables
 to `PATH`. Enable Android USB debugging, connect by USB and authorize this computer.
@@ -46,6 +60,8 @@ Check the connection with `adb devices`.
 git clone https://github.com/goldimpact/PhotoCluster.git
 cd PhotoCluster
 .\start.ps1
+# Existing dependencies, no automatic browser opening:
+.\start.ps1 -NoInstall -NoBrowser
 ```
 
 Open **http://127.0.0.1:8765**. Click **Sync folders** to inspect phone albums, then
@@ -72,12 +88,15 @@ CLIP inference currently uses CPU INT8; not every stage uses the GPU.
 For subsequent launches without checking/installing dependencies:
 
 ```powershell
-.\.venv\Scripts\python.exe -m uvicorn photocluster.app:app --host 127.0.0.1 --port 8765
+.\start.ps1 -NoInstall
 ```
 
 On Linux with Python 3.11+, ADB and FFmpeg installed, run `bash start.sh --check`,
 then `bash start.sh --no-install`. The Linux environment is `.venv-linux`.
 WSL can reuse Windows `adb.exe`; its default cache is isolated in `data/wsl/`.
+Linux desktop / WSLg users can run `bash PhotoCluster.sh` for the control window
+(Tk is required for the selected Python). Headless users can use `bash start.sh`;
+web exit works with that launcher too. `--no-browser` preserves a terminal-only flow.
 Use `--port 8766` if Windows is already using port 8765. See the Linux guide for
 Ubuntu 22.04 Python setup, USB permissions, proxy differences and explicit ADB selection.
 `requirements-lock.txt` records the tested Windows Python 3.11 CPU dependency

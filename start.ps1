@@ -1,6 +1,6 @@
 param(
     [string]$Proxy = '', [switch]$InstallGpu, [switch]$InstallModel,
-    [switch]$NoInstall, [switch]$Check,
+    [switch]$NoInstall, [switch]$Check, [switch]$NoBrowser,
     [ValidateSet('auto','cpu')][string]$Accelerator = 'auto',
     [int]$Port = 8765, [string]$Adb = '', [string]$DataDir = ''
 )
@@ -12,6 +12,7 @@ if ($InstallGpu) { $launchArgs += '--install-gpu' }
 if ($InstallModel) { $launchArgs += '--install-model' }
 if ($NoInstall) { $launchArgs += '--no-install' }
 if ($Check) { $launchArgs += '--check' }
+if ($NoBrowser) { $launchArgs += '--no-browser' }
 if ($Adb) { $launchArgs += @('--adb', $Adb) }
 if ($DataDir) { $launchArgs += @('--data-dir', $DataDir) }
 $launcher = if (Test-Path '.venv/Scripts/python.exe') { '.venv/Scripts/python.exe' } else { 'python' }

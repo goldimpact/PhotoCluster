@@ -59,7 +59,8 @@ async function app(language='en',saved=null){
   const state={running:true,phase:'variant_match',message:'验证同源画面与几何变换',done:5,total:10,errors:0,started_at:1};
   const requests=[];
   w.fetch=async(path,options)=>{requests.push({path,options});let data;const url=new URL(path,w.location);
-    if(url.pathname==='/api/devices')data=[{serial:'test-device',state:'device',description:'model:Test'}];
+    if(url.pathname==='/api/runtime')data={application:'PhotoCluster',instance:'test',managed:true,stopping:false,token:'test-only'};
+    else if(url.pathname==='/api/devices')data=[{serial:'test-device',state:'device',description:'model:Test'}];
     else if(url.pathname==='/api/albums')data={serial:'test-device',count:2,albums:[{path:photos[0].album,name:'相似媒体组',count:2,size:200,cached:2}]};
     else if(url.pathname==='/api/status')data=state;
     else if(url.pathname==='/api/groups')data={groups:[group],total:1,summary:{mode:'variants',groups:1,grouped_photos:2,scanned:2,finished_at:1,scope:'all'},ungrouped:{available:true,count:0,covers:[]}};
