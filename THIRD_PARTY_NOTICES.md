@@ -48,3 +48,11 @@ checks SHA-256 `4ea118d16496274f4f6e08d3afc768cc592389e8f7f32f8732ce2215c228ac5f
 CCIP targets **single-character anime images**, not all objects or group scenes.
 Preprocessing and distance semantics follow the upstream documentation; no
 `imgutils`, PyTorch or remote inference dependency is added.
+
+Automatic subject routing also uses the MIT-licensed
+[deepghs/anime_classification](https://huggingface.co/deepghs/anime_classification)
+`mobilenetv3_v1.5_dist` model. The pinned revision is
+`5ee62e06f5f4cd68a1c2f3bc5dc9805e827d37df` and SHA-256 is
+`ea8f4497b0e3ee86f43b6a6fd38884e25f960979a1debb5c4e1ee6a22e80d111`.
+Its image-style output only enables supplemental evidence. It does not establish
+subject identity, single-character presence, or guaranteed model applicability.

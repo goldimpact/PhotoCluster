@@ -31,12 +31,10 @@
       page=1;backGroups();await loadAlbums();await loadGroups();reviewItems=await api('errors');renderReview();await poll();
     }finally{busy=false;$('cacheConfirm').disabled=false;}
   });
-  $('subjectEngine').addEventListener('change',()=>{$('subjectModelStatus').textContent='';});
   $('installSubjectModel').onclick=()=>action(async()=>{
-    const engine=$('subjectEngine').value;
-    const info=await api('subject-model?engine='+encodeURIComponent(engine));
-    if(info.installed){$('subjectModelStatus').textContent=I18n.t('主体模型已安装');return;}
-    showScanState(await api('subject-model/install',{engine}));
+    const info=await api('subject-model?engine=auto');
+    if(info.installed){$('subjectModelStatus').textContent=I18n.t('主体识别资源已就绪');return;}
+    showScanState(await api('subject-model/install',{engine:'auto'}));
     $('subjectModelStatus').textContent=I18n.t('正在下载公共模型；可在进度区查看状态。');
   });
 })();

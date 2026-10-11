@@ -25,17 +25,16 @@ test('all six modes have their own help; strategy changes never overwrite it',()
 test('subject thresholds explain changes without reusing CLIP thresholds',()=>{
   const h=harness();h.change('mode','subject');
   for(const [value,word] of [['0.65','更宽'],['0.72','均衡'],['0.80','更严']]){
-    h.change('subjectThreshold',value);assert.match(h.$('scanHelp').textContent,/DINOv2/);
+    h.change('subjectThreshold',value);assert.match(h.$('scanHelp').textContent,/统一扫描/);
     assert.ok(h.$('scanHelp').textContent.includes(word));
-    assert.match(h.$('scanHelp').textContent,/无需选择样例/);
+    assert.match(h.$('scanHelp').textContent,/无需选择主体类别或模型/);
   }
 });
-test('character identity uses its own upstream threshold and explains single-character limit',()=>{
-  const h=harness();h.change('mode','subject');h.change('subjectEngine','anime');h.change('subjectThreshold','0.72');
-  assert.match(h.$('scanHelp').textContent,/CCIP/);assert.match(h.$('scanHelp').textContent,/单角色/);
-  assert.ok(Math.abs(h.api.subjectThreshold()-(1-.17847511429108218))<1e-12);
-  h.change('subjectThreshold','0.65');assert.equal(h.api.subjectThreshold(),.78);
-  h.change('subjectEngine','general');assert.equal(h.api.subjectThreshold(),.65);
+test('one subject strictness control exposes no backend choice',()=>{
+  const h=harness();h.change('mode','subject');h.change('subjectThreshold','0.72');
+  assert.doesNotMatch(h.$('scanHelp').textContent,/CCIP|DINOv2/);
+  assert.equal(h.api.subjectThreshold(),.72);
+  h.change('subjectThreshold','0.65');assert.equal(h.api.subjectThreshold(),.65);
 });
 test('content threshold explains each choice immediately',()=>{
   const h=harness();h.change('mode','content');

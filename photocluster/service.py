@@ -137,7 +137,8 @@ class Service:
             if mode=='subject':
                 from . import subject
                 encoder=subject.backend(subject_engine)
-                if not encoder.MODEL.exists():raise ValueError('请先安装本地动漫角色模型' if subject_engine=='anime' else '请先安装本地主体模型')
+                ready=encoder.installed() if subject_engine=='auto' else encoder.MODEL.exists()
+                if not ready:raise ValueError('请先准备主体识别资源')
             serial = serial or self.catalog['serial']
             if not serial:
                 raise ValueError('请先刷新手机相册')
@@ -215,7 +216,8 @@ class Service:
                         seconds=time.perf_counter()-stage['started'];rate=done/max(seconds,.001)
                         messages={'embedding':'本地模型分析关键帧内容','content_match':'跨格式内容归组',
                                   'subject_embedding':'本地主体模型提取整图与区域特征','subject_match':'自动发现主体分组（实验）',
-                                  'character_embedding':'本地动漫角色模型提取身份特征','character_match':'按动漫角色身份归组（实验）'}
+                                  'character_embedding':'本地动漫角色模型提取身份特征','character_match':'按动漫角色身份归组（实验）',
+                                  'subject_routing':'分析主体识别线索','subject_supplement':'补充主体特征'}
                         self.update(phase=phase,message=messages[phase])
                         self.update(done=done,total=total,phase_seconds=round(seconds,1),rate=round(rate,1),eta_seconds=round((total-done)/rate) if rate else None)
                     groups=(subject.backend(subject_engine) if mode=='subject' else semantic).cluster(processed,self.thumbs,scope,threshold,content_report,self.cancel.is_set,force)

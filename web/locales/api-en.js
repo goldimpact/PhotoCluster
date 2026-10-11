@@ -1,5 +1,9 @@
 /* API display fields only; stored caches, paths and identifiers stay unchanged. */
 window.PhotoClusterApiEnglish = {
+  "请先准备主体识别资源": "Prepare subject recognition resources first",
+  "主体特征相近，请人工确认": "Similar subject features; review required",
+  "分析主体识别线索": "Analyzing subject recognition cues",
+  "补充主体特征": "Extracting additional subject features",
   "请先安装本地动漫角色模型": "Install the local anime character model first",
   "本地动漫角色模型提取身份特征": "Extracting anime character identity features locally",
   "按动漫角色身份归组（实验）": "Grouping by anime character identity (experimental)",

@@ -41,14 +41,14 @@ $('refresh').onclick=()=>action(async()=>{
   finally{clearInterval(timer);clearInterval(statusTimer);syncBusy=false;$('syncSpinner').hidden=true;$('syncElapsed').textContent=I18n.msg`耗时 ${((Date.now()-start)/1000).toFixed(1)} 秒`;$('refresh').textContent=I18n.t('↻ 同步目录');$('refresh').disabled=false;$('scan').disabled=wasRunning;}
 });
 $('device').onchange=()=>{$('refresh').click();};
-$('scan').onclick=()=>action(async()=>{const state=await api('scan',{albums:[...selected],mode:$('mode').value,scope:$('scope').value,force:$('scanStrategy').value==='force',all_albums:$('scanTarget').value==='all',serial:$('device').value||null,threshold:$('mode').value==='subject'?window.ScanOptions.subjectThreshold():Number($('contentThreshold').value),...($('mode').value==='subject'?{subject_engine:$('subjectEngine').value}:{}),...($('mode').value==='variants'?{rules:window.ScanOptions.rules()}:{})});showScanState(state);await poll();});
+$('scan').onclick=()=>action(async()=>{const state=await api('scan',{albums:[...selected],mode:$('mode').value,scope:$('scope').value,force:$('scanStrategy').value==='force',all_albums:$('scanTarget').value==='all',serial:$('device').value||null,threshold:$('mode').value==='subject'?window.ScanOptions.subjectThreshold():Number($('contentThreshold').value),...($('mode').value==='subject'?{subject_engine:'auto'}:{}),...($('mode').value==='variants'?{rules:window.ScanOptions.rules()}:{})});showScanState(state);await poll();});
 $('stop').onclick=()=>action(async()=>{const d=await api('stop',{});$('statusText').textContent=d.message;});
 async function poll(){if(pollBusy||window.ServiceControl?.stopping)return;pollBusy=true;try{
   const s=await api('status');
   scanState=s;renderResultStatus();
   $('scan').disabled=s.running||syncBusy;$('refresh').disabled=s.running||syncBusy;$('stop').hidden=!s.running;
   $('scope').disabled=s.running;$('mode').disabled=s.running;$('statusText').textContent=s.message;
-  for(const id of ['scanStrategy','scanTarget','device','contentThreshold','subjectThreshold','subjectEngine'])$(id).disabled=s.running||syncBusy;
+  for(const id of ['scanStrategy','scanTarget','device','contentThreshold','subjectThreshold'])$(id).disabled=s.running||syncBusy;
   for(const id of ['cachePreview','installSubjectModel'])if($(id))$(id).disabled=s.running||syncBusy;
   window.ScanOptions.setBusy(s.running||syncBusy);
   const recentRate=window.SpeedChart?.update(s);
@@ -88,7 +88,7 @@ async function loadGroups(){
     $('resultMeta').textContent=I18n.msg`结果完成于：${new Date(s.finished_at*1000).toLocaleString(I18n.locale)} · ${s.scope==='all'?I18n.t('跨相册'):I18n.t('相册内')} · ${{strict:I18n.t('快速模式'),strong:I18n.t('增强模式'),relaxed:I18n.t('宽松模式'),subject:I18n.t('自动主体组（实验）'),content:I18n.t('跨格式内容相似'),variants:I18n.t('同源画面变体')}[s.mode]}${s.total_seconds!==undefined?I18n.t(' · 该次耗时 ')+s.total_seconds+I18n.t(' 秒'):''} · ${s.mode==='content'?I18n.t('内容相似不等于重复，请自行比较'):I18n.t('虚拟文件夹不改变手机目录')}`;
     if(s.stale)$('resultMeta').textContent+=I18n.t(' · 手机目录已有变化，请重新分类');
     if(s.mode==='variants')$('resultMeta').textContent+=I18n.t(' · 本次规则：')+(s.rules?window.ScanOptions.ruleText(s.rules):I18n.t('旧版完整规则（含扭曲校正）'));
-    if(s.mode==='subject')$('resultMeta').textContent+=' · '+(s.subject_engine==='anime'?I18n.t('动漫角色 · CCIP'):I18n.t('通用物体 · DINOv2'));
+    if(s.mode==='subject'&&s.subject_engine!=='auto')$('resultMeta').textContent+=I18n.t(' · 旧版主体结果，可重新分类更新');
     $('groups').className='folder-grid';
     $('groups').innerHTML=data.groups.map(g=>I18n.html`<button class="virtual-folder" data-group="${g.id}"><div class="folder-cover">${g.photos.slice(0,3).map(p=>I18n.html`<img loading="lazy" src="/api/thumb/${p.key}" alt="分类预览">`).join('')}</div><div class="folder-title">▰ ${g.kind==='subject'?I18n.t('主体组'):g.kind==='content'?I18n.t('内容组'):g.kind==='variants'?I18n.t('同源画面组'):I18n.t('相似组')} ${String(g.id).padStart(3,'0')}${g.photos.some(p=>p.media_type==='video')?I18n.t(' · 视频'):g.photos.some(p=>p.animated)?I18n.t(' · 动画'):''}</div><div class="folder-meta">${g.photos.length} 个文件 · ${new Set(g.photos.map(p=>p.album)).size} 个来源目录</div><div class="folder-meta">最新：${esc(dateText(Math.max(...g.photos.map(photoTime))))}</div><div class="folder-meta">${['content','variants','subject'].includes(g.kind)?I18n.t('总大小 ')+bytes(g.photos.reduce((n,p)=>n+p.size,0)):I18n.t('候选体积 ')+bytes(g.potential_bytes)} <span>查看 →</span></div></button>`).join('')||I18n.html('<div class="empty"><h3>当前筛选下没有相似组</h3><p>可调整筛选或选择内容相似模式。</p></div>');
   }

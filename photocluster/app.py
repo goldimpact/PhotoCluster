@@ -117,7 +117,7 @@ class Scan(BaseModel):
     serial: str | None = None
     threshold: float = Field(default=.84,ge=.65,le=.98)
     rules: VariantRules = Field(default_factory=VariantRules)
-    subject_engine: Literal['general','anime'] = 'general'
+    subject_engine: Literal['auto','general','anime'] = 'auto'
 
 
 @app.post('/api/scan')
@@ -180,14 +180,14 @@ def cache_clear(body: CacheToken):
 
 
 @app.get('/api/subject-model')
-def subject_model(engine: Literal['general','anime']='general'):
+def subject_model(engine: Literal['auto','general','anime']='auto'):
     from .subject import backend
     encoder=backend(engine)
-    return dict(installed=encoder.MODEL.exists(), version=encoder.VERSION,engine=engine)
+    return dict(installed=encoder.installed() if engine=='auto' else encoder.MODEL.exists(), version=encoder.VERSION,engine=engine)
 
 
 class SubjectModelInstall(BaseModel):
-    engine: Literal['general','anime']='general'
+    engine: Literal['auto','general','anime']='auto'
 
 
 @app.post('/api/subject-model/install')
@@ -199,7 +199,9 @@ def install_subject_model(body: SubjectModelInstall):
         service.update(running=True,phase='model_install',message='下载公共主体模型，不上传媒体',done=0,total=0,downloaded_bytes=0,started_at=time.time())
         def work():
             try:
-                if body.engine=='anime':
+                if body.engine=='auto':
+                    from scripts.setup_subject_auto import install
+                elif body.engine=='anime':
                     from scripts.setup_character import install
                 else:
                     from scripts.setup_subject import install

@@ -22,6 +22,9 @@ _lock = threading.Lock()
 
 
 def backend(engine='general'):
+    if engine=='auto':
+        from . import subject_auto
+        return subject_auto
     if engine=='anime':
         from . import character
         return character

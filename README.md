@@ -25,16 +25,12 @@ phone folder. You cannot add files to virtual groups.
   it does not reliably identify one character across fan art, redrawings and memes.
   A broader threshold may mix different subjects rather than resolve their identity.
 - Fast, enhanced and relaxed near-duplicate modes for comparing copies.
-- **Automatic subjects (experimental):** a separate local DINOv2 encoder compares
-  whole images and overlapping regions, without selecting examples. It works on
-  images, GIFs and sampled video frames; character identities across radically
-  different fan art remain unvalidated. Choose this mode and use **Install / check
-  subject model** to download its pinned model (about 24 MB). Classification stays offline.
-  This mode also offers **Anime characters · CCIP** (about 150 MB, upstream OpenRAIL),
-  trained for identity similarity in single-character anime images across poses and
-  styles without requiring identical colors. Multiple characters, animal mascots
-  and extreme parodies may work poorly. It is not general object identity recognition.
-  Engines have separate versioned feature caches; incremental scanning is sufficient.
+- **Automatic subjects (experimental):** one workflow for images, GIFs and videos,
+  without choosing subject categories or models. The backend combines general and
+  applicable supplemental features into one set of virtual groups. Use **Prepare /
+  check recognition resources** once (about 191 MB total; existing files are reused).
+  A unified workflow is not a guarantee of universal identity recognition. Changes
+  in style, occlusion, multiple subjects and extreme deformations can still fail.
 - **Local cache** in the scan panel shows storage usage and offers confirmed cleanup
   of results, analysis, or the whole media inventory. Phone originals, installed
   models, settings and operation journals are kept. Model/version changes invalidate

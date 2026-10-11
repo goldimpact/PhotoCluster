@@ -1,5 +1,13 @@
 /* Application copy only. Interpolated filenames and paths are never translated. */
 window.PhotoClusterEnglish = {
+  "统一入口，由程序组合识别线索，自动提出人物、动物、物体或虚构形象的分组。无需选择主体类别或模型，结果仍需人工检查。": "One workflow combines recognition cues to suggest groups of people, animals, objects or fictional figures. No subject category or model choice is required; results still need review.",
+  " · 旧版主体结果，可重新分类更新": " · Previous subject workflow; classify again to update",
+  "自动发现主体（实验）：统一扫描人物、动物、物体与虚构形象，由程序组合可用的识别线索，无需选择主体类别或模型。图片、GIF 和视频均参与。当前仍可能漏分或混入不同主体，尤其是跨画风、换装、遮挡和多人画面；分组需要人工检查。": "Discover subjects (experimental): scan people, animals, objects and fictional figures in one workflow. The app combines available recognition cues; no subject category or model selection is needed. Images, GIFs and videos participate. Missed and incorrect matches remain possible, especially across styles, outfits, occlusion and multiple subjects; review the groups.",
+  "首次使用需准备约 191 MB 识别资源；已安装的资源会复用。仅下载公共模型，照片不上传，分类在本机运行。": "First use requires about 191 MB of recognition resources; installed resources are reused. Only public models are downloaded. Photos are not uploaded and classification runs locally.",
+  "准备 / 检查识别资源": "Prepare / check recognition resources",
+  "主体识别资源已就绪": "Subject recognition resources are ready",
+  "识别线索": "Recognition cues",
+  "补充主体特征": "Additional subject features",
   "角色身份特征": "Character identity features",
   "角色身份匹配": "Character identity matching",
   "要归类的主体": "Subject to organize",

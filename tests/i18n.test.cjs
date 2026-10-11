@@ -141,22 +141,24 @@ test('automatic subject mode sends its own threshold without examples and preser
     const d=h.w.document;h.state.running=false;h.state.phase='idle';await h.w.eval('poll()');
     assert.equal(d.getElementById('mode').value,'subject');assert.equal(d.getElementById('subjectThresholdLabel').hidden,false);
     assert.equal(d.getElementById('contentThresholdLabel').hidden,true);
-    assert.match(d.getElementById('scanHelp').textContent,/DINOv2/);
+    assert.match(d.getElementById('scanHelp').textContent,/one workflow/);
     await d.getElementById('scan').onclick();
     const request=h.requests.find(r=>r.path==='/api/scan'),body=JSON.parse(request.options.body);
     assert.equal(body.mode,'subject');assert.equal(body.threshold,.65);assert.equal(body.examples,undefined);
   }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
-test('anime engine survives language reload and sends CCIP threshold, not DINO threshold',async()=>{
+test('obsolete saved engine is ignored; unified workflow has no subject category selector',async()=>{
   const h=await app('en',{mode:'subject',subjectEngine:'anime',subjectThreshold:'0.72'});try{
     const d=h.w.document;h.state.running=false;h.state.phase='idle';await h.w.eval('poll()');
-    assert.match(d.getElementById('scanHelp').textContent,/CCIP/);
-    assert.match(d.getElementById('subjectModelDescription').textContent,/OpenRAIL/);
+    assert.equal(d.getElementById('subjectEngine'),null);
+    assert.equal(d.getElementById('subjectEngineLabel'),null);
+    assert.doesNotMatch(d.getElementById('scanHelp').textContent,/CCIP|DINOv2/);
+    assert.match(d.getElementById('subjectModelDescription').textContent,/191 MB/);
     await d.getElementById('scan').onclick();
     const body=JSON.parse(h.requests.find(r=>r.path==='/api/scan').options.body);
-    assert.equal(body.subject_engine,'anime');assert.equal(body.threshold,1-.17847511429108218);
+    assert.equal(body.subject_engine,'auto');assert.equal(body.threshold,.72);
     await d.getElementById('installSubjectModel').onclick();
-    assert.ok(h.requests.some(r=>r.path==='/api/subject-model?engine=anime'));
+    assert.ok(h.requests.some(r=>r.path==='/api/subject-model?engine=auto'));
   }finally{await new Promise(setImmediate);h.dom.window.close();}
 });
 test('language reload restores scope, mode, filters and album selections without starting a scan',async()=>{

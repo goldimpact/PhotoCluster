@@ -43,11 +43,15 @@ whole-image plus overlapping patch-region similarities, with bounded matrix bloc
 It accepts no examples and proposes automatic groups. It is not a specialized
 character identity classifier; cross-style fan-art accuracy is unvalidated.
 See [subject grouping](SUBJECT-GROUPING.md) for the exact score and limitations.
-The same UI mode can select the optional CCIP anime engine, with its own upstream
-preprocessing, identity embedding and distance scale. Single-character anime is its
-documented domain; it does not detect separate characters in group scenes. Engine
-selection persists through language reloads and is recorded in result summaries.
-CCIP vectors use `characters.sqlite3`; model identity separates result-cache reuse.
+The UI has one automatic subject workflow, with no category/model selector.
+`subject_auto.py` combines general vectors with per-frame supplemental evidence
+enabled by a local style classifier. It is not a subject detector or universal
+identity classifier. Eligible frame pairs use identity evidence to resolve style
+similarity disagreements; other frame pairs still use the general route. All
+members must match their original reference directly. Legacy API engines remain
+available for compatibility but the UI always sends `auto`; obsolete saved engine
+settings are ignored. Model/feature caches stay separate and the combined result
+signature includes every contributing model and routing policy version.
 
 ## Caches and publication
 
