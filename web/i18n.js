@@ -3,6 +3,15 @@
 const I18n=(()=>{
   let language='zh';
   try{language=localStorage.getItem('photocluster.language')==='en'?'en':'zh';}catch{}
+  // Consume the launcher's explicit choice once so later in-page changes win.
+  try{
+    const url=new URL(location.href),requested=url.searchParams.get('lang');
+    if(['zh','en'].includes(requested)){
+      language=requested;
+      try{localStorage.setItem('photocluster.language',requested);}catch{}
+      url.searchParams.delete('lang');history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+    }
+  }catch{}
   const dictionary=()=>window.PhotoClusterEnglish||{};
   const t=key=>language==='en'?(dictionary()[key]??key):key;
   const substitute=(pattern,values)=>pattern.replace(/\{(\d+)\}/g,(token,index)=>index<values.length?String(values[index]):token);

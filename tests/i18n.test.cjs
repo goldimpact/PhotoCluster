@@ -21,6 +21,20 @@ test('translation substitutes once and never translates filenames, paths or iden
   assert.equal(i.html`<div title="分类预览">${name}</div><button>查看原文件</button>`,`<div title="Group preview">${name}</div><button>View original</button>`);
   i.setLanguage('zh');assert.equal(i.msg`已选 ${3} 个`,'已选 3 个');assert.equal(i.locale,'zh-CN');
 });
+
+test('launcher language overrides stale browser preference once, then in-page choice wins',()=>{
+  const dom=new JSDOM('<html><body></body></html>',{url:'http://localhost:8765/?lang=zh&keep=1#view',runScripts:'outside-only'});
+  const w=dom.window;w.localStorage.setItem('photocluster.language','en');
+  try{
+    vm.runInContext(fs.readFileSync('web/i18n.js','utf8'),dom.getInternalVMContext());
+    assert.equal(vm.runInContext('I18n.language',dom.getInternalVMContext()),'zh');
+    assert.equal(w.localStorage.getItem('photocluster.language'),'zh');
+    assert.equal(w.location.search,'?keep=1');assert.equal(w.location.hash,'#view');
+    vm.runInContext("I18n.setLanguage('en')",dom.getInternalVMContext());
+    assert.equal(w.localStorage.getItem('photocluster.language'),'en');
+    assert.equal(new URL(w.location.href).searchParams.has('lang'),false);
+  }finally{w.close();}
+});
 test('every explicit UI translation has English copy with identical placeholders',()=>{
   const context={window:{}};vm.runInNewContext(fs.readFileSync(scripts[0],'utf8'),context);
   const dictionary=context.window.PhotoClusterEnglish,keys=new Set(),han=/[\u3400-\u9fff]/;

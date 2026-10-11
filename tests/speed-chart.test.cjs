@@ -1,8 +1,8 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function harness(dom=false,reduced=false){
+function harness(dom=false,reduced=false,storage=new Map(),wall=100000){
   const nodes=new Map();let html='';const node=id=>{if(!nodes.has(id))nodes.set(id,{value:0,events:{},attrs:{},hidden:false,textContent:'',insertAdjacentHTML(where,text){html+=text;},setAttribute(k,v){this.attrs[k]=v;},removeAttribute(k){delete this.attrs[k];},addEventListener(k,fn){this.events[k]=fn;},getBoundingClientRect(){return {left:0,width:600};}});return nodes.get(id);};
   let now=0,next=0;const frames=new Map(),events={};
-  const context={window:{matchMedia:()=>({matches:reduced,addEventListener(){}}),addEventListener(){}},document:{hidden:false,getElementById:id=>dom?node(id):null,addEventListener:(k,f)=>events[k]=f},performance:{now:()=>now},ResizeObserver:class{observe(){}},requestAnimationFrame:fn=>{frames.set(++next,fn);return next;},cancelAnimationFrame:id=>frames.delete(id)};
+  const context={Date:{now:()=>wall+now},sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},window:{matchMedia:()=>({matches:reduced,addEventListener(){}}),addEventListener(){}},document:{hidden:false,getElementById:id=>dom?node(id):null,addEventListener:(k,f)=>events[k]=f},performance:{now:()=>now},ResizeObserver:class{observe(){}},requestAnimationFrame:fn=>{frames.set(++next,fn);return next;},cancelAnimationFrame:id=>frames.delete(id)};
   vm.runInNewContext(fs.readFileSync("web/i18n.js","utf8")+"\n"+fs.readFileSync('web/speed-chart.js','utf8'),context);
   return {History:context.window.SpeedHistory,display:context.window.SpeedDisplayPoints,chart:context.window.SpeedChart,node,time:value=>now=value,frames,html:()=>html,document:context.document,events,frame(time){now=time;const pending=[...frames.values()];frames.clear();pending.forEach(fn=>fn(time));}};
 }
@@ -68,4 +68,29 @@ test('hidden tab, stopped job, disconnected poll and reduced motion stop animati
   h.time(500);h.chart.update(status(5));assert.equal(h.frames.size,1);
   h.chart.update({running:false,phase:'done'});assert.equal(h.frames.size,0);
   const reduced=harness(true,true);reduced.chart.update(status(0));assert.equal(reduced.frames.size,0);
+});
+
+test('language reload preserves history and speed using the new performance clock',()=>{
+  const storage=new Map(),before=harness(true,true,storage,100000);
+  before.chart.update(status(0));before.time(1000);before.chart.update(status(10));before.time(2000);before.chart.update(status(20));
+  before.chart.saveForReload();
+  const after=harness(true,true,storage,102500);after.chart.update(status(25));
+  assert.match(after.node('speedValue').textContent,/10 个\/秒/);
+  assert.ok((after.node('speedLine').attrs.d.match(/L/g)||[]).length>=2);
+  assert.equal(storage.size,0);
+});
+
+test('reload gaps are not filled, and new jobs/phases or expired history are discarded',()=>{
+  const H=harness().History,old=new H();old.update(status(0),0);old.update(status(10),1000);
+  const snapshot=old.snapshot(1000,100000),restored=new H();
+  assert.equal(restored.restore(snapshot,0,105000),true);
+  assert.equal(restored.update(status(100),0),null);assert.equal(restored.gap,true);
+  assert.equal(restored.points.at(-1).rate,null);
+  assert.equal(new H().restore(snapshot,0,170000),false);
+  assert.equal(new H().restore({...snapshot,points:[null]},0,100500),false);
+  for(const change of [{started_at:2},{phase:'embedding'}]){
+    const storage=new Map([['photocluster.speedHistory',JSON.stringify(snapshot)]]);
+    const h=harness(true,true,storage,100500);h.chart.update(status(15,change));
+    assert.equal(h.node('speedLine').attrs.d,'');assert.match(h.node('speedValue').textContent,/等待采样/);
+  }
 });

@@ -4,8 +4,33 @@
   class SpeedHistory {
     constructor(){this.reset(null,null);}
     reset(job,phase){this.job=job;this.phase=phase;this.readings=[];this.points=[];this.rate=null;this.time=0;this.active=false;this.gap=false;}
+    snapshot(now,wall){
+      return {version:1,wall,job:this.job,phase:this.phase,active:this.active,rate:this.rate,
+        time:this.time-now,readings:this.readings.map(p=>({...p,time:p.time-now})),
+        points:this.points.map(p=>({...p,time:p.time-now}))};
+    }
+    restore(saved,now,wall){
+      if(!saved||saved.version!==1||!Number.isFinite(saved.wall)||wall<saved.wall||wall-saved.wall>WINDOW||
+        typeof saved.job!=='number'||!Number.isFinite(saved.job)||typeof saved.phase!=='string'||
+        typeof saved.active!=='boolean'||!Number.isFinite(saved.time)||saved.time>0||
+        !(saved.rate===null||Number.isFinite(saved.rate)&&saved.rate>=0)||
+        !Array.isArray(saved.points)||saved.points.length>512||!Array.isArray(saved.readings)||saved.readings.length>512)return false;
+      const validTime=p=>p&&Number.isFinite(p.time)&&p.time<=0;
+      if(!saved.points.every(p=>validTime(p)&&(p.rate===null||Number.isFinite(p.rate)&&p.rate>=0))||
+        !saved.readings.every(p=>validTime(p)&&Number.isFinite(p.done)&&p.done>=0&&Number.isFinite(p.cached)&&Number.isFinite(p.reused)))return false;
+      const ordered=items=>items.every((p,i)=>!i||p.time>=items[i-1].time);
+      if(!ordered(saved.points)||!ordered(saved.readings))return false;
+      const shift=now-(wall-saved.wall);
+      this.reset(saved.job,saved.phase);this.active=saved.active;this.rate=saved.rate;this.time=saved.time+shift;
+      this.points=saved.points.map(p=>({...p,time:p.time+shift})).filter(p=>p.time>=now-WINDOW-DELAY);
+      this.readings=saved.readings.map(p=>({...p,time:p.time+shift}));
+      return true;
+    }
     update(status,time){
-      if(!status.running){this.active=false;return this.rate;}
+      if(!status.running){
+        if(status.started_at!==undefined&&status.started_at!==this.job)this.reset(null,null);
+        this.active=false;return this.rate;
+      }
       const job=status.started_at??'unknown',phase=status.phase;
       if(job!==this.job||phase!==this.phase)this.reset(job,phase);
       this.active=true;this.time=time;
@@ -38,6 +63,8 @@
   const anchor=document.getElementById('currentPath');if(!anchor)return;
   anchor.insertAdjacentHTML('afterend',I18n.html`<section class="speed-chart" aria-label="处理速度趋势"><div class="speed-heading"><strong id="speedPhase">处理速度 · 等待任务</strong><span id="speedValue">等待采样</span></div><div class="speed-plot" id="speedPlot"><span id="speedMax" class="speed-scale">个/秒</span><svg id="speedSvg" viewBox="0 0 600 132" role="img" tabindex="0" aria-label="最近 60 秒速度曲线，可用左右方向键查看采样"><path id="speedGrid" class="speed-grid"/><path id="speedLine" class="speed-line" d=""/><circle id="speedDot" r="3" visibility="hidden"/><line id="speedCursor" class="speed-cursor" y1="20" y2="120" visibility="hidden"/></svg><span class="speed-zero">0</span></div><div class="speed-axis"><span>60 秒前</span><span id="speedRight">现在</span></div><p id="speedHint">开始分类后显示速度趋势</p><p id="speedSample" class="speed-sample" aria-live="off"></p></section>`);
   const $=id=>document.getElementById(id),history=new SpeedHistory();
+  const storageKey='photocluster.speedHistory';let pendingRestore=null;
+  try{pendingRestore=JSON.parse(sessionStorage.getItem(storageKey)||'null');sessionStorage.removeItem(storageKey);}catch{}
   const names={refresh:I18n.t('同步目录'),scan:I18n.t('读取与提取特征'),cluster:I18n.t('准备分类'),embedding:I18n.t('内容特征'),content_match:I18n.t('内容匹配'),variant_features:I18n.t('同源特征'),variant_match:I18n.t('几何验证')};
   const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
   let width=600,maximum=1,frame=null,lastFrame=null,viewTime=0,broken=false,selected=null,pointer=null;
@@ -78,6 +105,12 @@
   function start(){if(frame===null&&history.active&&!motion.matches&&!document.hidden&&!broken)frame=requestAnimationFrame(animate);}
   function resize(){width=Math.max(1,$('speedPlot').getBoundingClientRect().width||600);$('speedSvg').setAttribute('viewBox',`0 0 ${width} 132`);$('speedGrid').setAttribute('d',`M0 20H${width} M0 70H${width} M0 120H${width}`);render(performance.now());}
   function update(status){
+    if(pendingRestore){
+      if(status.started_at===pendingRestore.job&&(!status.running||status.phase===pendingRestore.phase)){
+        if(history.restore(pendingRestore,performance.now(),Date.now()))maximum=Math.max(1,...history.points.map(p=>p.rate||0))*1.1;
+      }
+      pendingRestore=null;
+    }
     const phase=history.phase,job=history.job;
     history.update(status,performance.now());broken=false;
     if(phase!==history.phase||job!==history.job){maximum=1;lastFrame=null;selected=null;pointer=null;}
@@ -105,5 +138,7 @@
   motion.addEventListener('change',()=>{stop();render(performance.now());start();});
   window.addEventListener('pagehide',stop);
   new ResizeObserver(resize).observe($('speedPlot'));resize();
-  window.SpeedChart={update,unavailable(){broken=true;stop();$('speedHint').textContent=I18n.t('暂时无法获取进度 · 保留最后记录');}};
+  window.SpeedChart={update,saveForReload(){
+    try{sessionStorage.setItem(storageKey,JSON.stringify(history.snapshot(performance.now(),Date.now())));}catch{}
+  },unavailable(){broken=true;stop();$('speedHint').textContent=I18n.t('暂时无法获取进度 · 保留最后记录');}};
 })();

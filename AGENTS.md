@@ -74,6 +74,9 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
 - Static index.html is localized once before data loads. Do not add a blanket
   MutationObserver translator. Language reload preserves scan settings/filters;
   the server job continues. Verify destructive confirmations in both languages.
+- The desktop passes a one-shot `lang=zh|en` URL choice; consume it before rendering
+  so later in-page language changes win. Preserve recent speed samples across language
+  reloads only for the same job/phase, translating clocks without inventing samples.
 
 ## Verification
 

@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT))
 from photocluster.runtime import workspace_id
 from photocluster.config import DATA
 from photocluster.client import inspect_service
+from photocluster.desktop_support import browser_url, read_language, save_language, LogTail
 
 COPY = {
     'title': ('PhotoCluster 控制窗口', 'PhotoCluster control'),
@@ -52,7 +53,8 @@ def main():
     except ImportError:
         raise SystemExit('Desktop controls require Tk: install python3-tk (or tkinter for your Python distribution). CLI: bash start.sh')
     root = tk.Tk(); root.title('PhotoCluster'); root.geometry('610x390'); root.minsize(560,360)
-    language = tk.StringVar(value='zh'); port = tk.StringVar(value='8765')
+    preferences = DATA / 'desktop-settings.json'
+    language = tk.StringVar(value=read_language(preferences)); port = tk.StringVar(value='8765')
     events = queue.Queue(); state = {'phase':'checking','snapshot':None,'child':None,'log':None,'busy':False,'quit':False,'exit_sent':False,'seen':False,'polling':False,'repair':False,'ended':False}
     text = lambda key: COPY[key][language.get() == 'en']
     frame=ttk.Frame(root,padding=24);frame.pack(fill='both',expand=True)
@@ -109,6 +111,7 @@ def main():
         if install:args.append('--check')
         try:
             state['child']=subprocess.Popen(args,cwd=ROOT,stdout=logfile,stderr=logfile,
+                env=dict(os.environ,PYTHONUNBUFFERED='1',PYTHONIOENCODING='utf-8'),
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name=='nt' else 0)
             state.update(phase='starting',busy=True,seen=False,exit_sent=False,repair=install,ended=False)
         except OSError:logfile.close();state.update(phase='failed',log=None)
@@ -135,12 +138,38 @@ def main():
         threading.Thread(target=send,daemon=True).start()
     def log_window():
         win=tk.Toplevel(root);win.title(text('logs'));win.geometry('760x450')
-        view=tk.Text(win,wrap='word');view.pack(fill='both',expand=True)
-        try:
-            with (DATA/'launcher.log').open('rb') as handle:
-                handle.seek(0,2);handle.seek(max(0,handle.tell()-60000));value=handle.read().decode('utf-8','replace')
-        except OSError:value='No log / 暂无日志'
-        view.insert('1.0',value);view.config(state='disabled')
+        bar=ttk.Frame(win,padding=8);bar.pack(fill='x')
+        follow=tk.BooleanVar(value=True)
+        ttk.Checkbutton(bar,text='自动跟随最新日志' if language.get()=='zh' else 'Follow latest logs',variable=follow).pack(side='left')
+        body=ttk.Frame(win);body.pack(fill='both',expand=True)
+        body.rowconfigure(0,weight=1);body.columnconfigure(0,weight=1)
+        view=tk.Text(body,wrap='none',state='disabled');view.grid(row=0,column=0,sticky='nsew')
+        vertical=ttk.Scrollbar(body,orient='vertical',command=view.yview);vertical.grid(row=0,column=1,sticky='ns')
+        horizontal=ttk.Scrollbar(body,orient='horizontal',command=view.xview);horizontal.grid(row=1,column=0,sticky='ew')
+        view.config(yscrollcommand=vertical.set,xscrollcommand=horizontal.set)
+        def bottom():follow.set(True);view.see('end')
+        ttk.Button(bar,text='回到最新' if language.get()=='zh' else 'Jump to latest',command=bottom).pack(side='right')
+        tail=LogTail(DATA/'launcher.log');timer=None
+        def refresh():
+            nonlocal timer
+            reset,value=tail.read()
+            at_bottom=view.yview()[1]>=.995
+            if reset or value:
+                view.config(state='normal')
+                if reset:view.delete('1.0','end')
+                view.insert('end',value)
+                lines=int(view.index('end-1c').split('.')[0])
+                if lines>4000:view.delete('1.0',f'{lines-4000}.0')
+                # Also bound a single extremely long line.
+                count=(view.count('1.0','end-1c','chars') or (0,))[0]
+                if count>250000:view.delete('1.0',f'1.0 + {count-250000} chars')
+                view.config(state='disabled')
+                if follow.get() and (at_bottom or reset):view.see('end')
+            timer=win.after(500,refresh)
+        def close():
+            if timer is not None:win.after_cancel(timer)
+            win.destroy()
+        win.protocol('WM_DELETE_WINDOW',close);refresh()
     def switch():
         if state['busy'] or state['phase'] not in ('legacy','external'):return
         if not messagebox.askyesno('PhotoCluster',text('migrate_confirm')):return
@@ -187,7 +216,7 @@ def main():
                     state['snapshot']=data
                     state['phase']='stopping' if data['stopping'] else 'running' if data['managed'] else 'external'
                     if state['child'] and not state['seen'] and not state['repair'] and not data['stopping']:
-                        webbrowser.open(url());state['seen']=True
+                        webbrowser.open(browser_url(url(),language.get()));state['seen']=True
                 else:
                     state['snapshot']=None
                     if not state['child'] and state['phase'] in ('checking','legacy','conflict','unknown'):
@@ -203,8 +232,9 @@ def main():
                 if state['quit'] and code==0:root.destroy();return
         render();root.after(600,poll)
     start.config(command=lambda:launch());repair.config(command=lambda:launch(True))
-    opened.config(command=lambda:webbrowser.open(url()));stopped.config(command=lambda:exit_application())
-    logs.config(command=log_window);selector.bind('<<ComboboxSelected>>',render)
+    opened.config(command=lambda:webbrowser.open(browser_url(url(),language.get())));stopped.config(command=lambda:exit_application())
+    def language_changed(*_):save_language(preferences,language.get());render()
+    logs.config(command=log_window);selector.bind('<<ComboboxSelected>>',language_changed)
     migration.config(command=switch)
     root.protocol('WM_DELETE_WINDOW',lambda:exit_application(True));render();poll();root.mainloop()
 

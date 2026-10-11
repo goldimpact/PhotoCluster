@@ -30,6 +30,8 @@ phone folder. You cannot add files to virtual groups.
   remembered. Switching reloads the view and preserves scan settings, album selection
   and filters; a background scan continues. Open viewers close and file selections
   must be made again. This does not invalidate media caches.
+  Recent speed samples survive language reloads for the same job and phase. Long
+  polling gaps remain gaps, not invented speeds; the page still briefly reloads.
 
 Recognition is heuristic. Severe deformation, low texture, short scenes between
 sampled frames or candidate limits can cause missed matches. Similarity scores are
@@ -42,6 +44,9 @@ For a graphical workflow, after installing the prerequisites below, double-click
 interface**, **Exit application**, dependency repair and local logs. Initial setup
 installs dependencies; later launches reuse the environment. The browser opens only
 after the service is ready. The window reports when its process has stopped.
+The launcher remembers its language and passes it to newly opened pages. The log
+window tails updates every 500 ms, with vertical/horizontal scrollbars and a jump
+to latest control; reading older lines does not force the view back to the bottom.
 
 The page also shows connection status and **Exit PhotoCluster**. Closing a browser
 tab does not stop the service or interrupt a scan. Confirmed exit stops classification,

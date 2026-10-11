@@ -16,6 +16,7 @@
     const saved=Object.fromEntries(settings.map(id=>[id,document.getElementById(id).value]));
     saved.selection={serial:albumSerial,paths:[...selected]};saved.filterAlbum=document.getElementById('filterAlbum').value;
     try{sessionStorage.setItem(key,JSON.stringify(saved));}catch{}
+    window.SpeedChart?.saveForReload();
     // Closing these first releases originals and video leases immediately.
     for(const id of ['preview','compareDialog','operationDialog']){const dialog=document.getElementById(id);if(dialog?.open)dialog.close();}
     I18n.setLanguage(select.value);location.reload();
