@@ -8,6 +8,7 @@ from contextlib import closing
 from pathlib import Path
 import sqlite3
 import threading
+from itertools import permutations
 
 import numpy as np
 from PIL import Image
@@ -16,8 +17,9 @@ from . import subject, character
 from .config import DATA
 
 MODEL=DATA/'models/subject-routing.onnx'
-VERSION='subject-auto-frame-routing-v1'
+VERSION='subject-auto-multiregion-abstain-v2'
 ROUTING_VERSION='mobilenetv3-v15-bilinear-half384-v1'
+_REGION_ASSIGNMENTS=np.array(list(permutations(range(4))))
 _session=None
 _identity=None
 _lock=threading.Lock()
@@ -102,6 +104,45 @@ def choose_match(general,extra,threshold):
     return max(choices,key=lambda x:x[0])[1] if choices else None
 
 
+def general_scores(a,b,threshold):
+    """Require support from three distinct region pairs, not one maximum.
+
+    Cached descriptors 2:6 are four overlapping spatial windows. Descriptor 1
+    is the entire patch average and cannot count as an independent region.
+    This is a conservative visual check, NOT a detector or identity guarantee.
+    """
+    whole=a[:,0]@b[:,0].T
+    regions=np.einsum('frd,gsd->fgrs',a[:,2:6],b[:,2:6])
+    # Enumerate only 24 assignments of four regions. One target region cannot
+    # support all source regions; allow one unmatched/occluded region.
+    assigned=regions[:,:,np.arange(4)[None,:],_REGION_ASSIGNMENTS]
+    supported=(assigned>=threshold).sum(axis=-1)>=3
+    local=np.max(np.where(supported,assigned.mean(axis=-1),-1),axis=-1)
+    return np.where((whole>=.45)&(local>=0),.4*whole+.6*local,-1)
+
+
+def verify_pair(a,b,gate_a,gate_b,char_a,char_b,threshold):
+    """Frame-pair routing with explicit abstention on inconsistent routes.
+
+    A rejected or unavailable identity comparison cannot fall back to style.
+    Search *all* eligible frame pairs, not just the old global maximum.
+    """
+    scores=general_scores(a,b,threshold)
+    scores=np.where(~gate_a[:,None]&~gate_b[None,:],scores,-1)
+    af,bf=np.unravel_index(int(scores.argmax()),scores.shape)
+    g=(float(scores[af,bf]),int(af),int(bf))
+    e=None
+    if char_a is not None and char_b is not None and gate_a.any() and gate_b.any():
+        score,af,bf=character.similarity(char_a[gate_a],char_b[gate_b])
+        e=(score,int(np.flatnonzero(gate_a)[af]),int(np.flatnonzero(gate_b)[bf]))
+    chosen=choose_match(g,e,threshold)
+    if chosen is None:return None
+    route='regions' if chosen is g else 'identity'
+    cut=threshold if route=='regions' else character_threshold(threshold)
+    margin=(chosen[0]-cut)/max(1-cut,1e-6)
+    return margin,chosen,route
+
+
 def cluster(photos,thumbs,scope='all',threshold=.72,progress=None,cancelled=lambda:False,force=False):
     from .vision import quality
     from .acceleration import cpu_budget
@@ -145,22 +186,14 @@ def cluster(photos,thumbs,scope='all',threshold=.72,progress=None,cancelled=lamb
                 for j in sorted(candidates):
                     r=reps[j]
                     if scope=='album' and p['album']!=ordered[r]['album']:continue
-                    g=subject.similarity(general[r],v);e=None
-                    if cv is not None and r in characters:
-                        score,af,bf=character.similarity(characters[r][gates[r]],cv)
-                        e=(score,int(np.flatnonzero(gates[r])[af]),int(np.flatnonzero(gates[i])[bf]))
-                        # When both frames are in the supplemental route, the
-                        # identity evidence resolves disagreement. Do not let
-                        # similar style/background overrule a negative match.
-                        if gates[r][g[1]] and gates[i][g[2]]:g=None
-                    chosen=choose_match(g,e,threshold)
-                    if chosen:
-                        cut=threshold if chosen is g else ct
-                        margin=(chosen[0]-cut)/max(1-cut,1e-6)
-                        if best is None or margin>best[0]:best=(margin,j,chosen)
+                    match=verify_pair(general[r],v,gates[r],gates[i],characters.get(r),characters.get(i),threshold)
+                    if match:
+                        margin,chosen,route=match
+                        if best is None or margin>best[0]:best=(margin,j,chosen,route)
                 if best:
-                    _,j,(score,af,bf)=best
-                    groups[j].append(dict(p,score=round(min(score,.999),4),relation='subject',reason='主体特征相近，请人工确认',reference_frame=af,match_frame=bf))
+                    _,j,(score,af,bf),route=best
+                    reason=('多个不同区域相近，仍需确认是否同一主体' if route=='regions' else '身份模型特征相近，仍需人工确认')
+                    groups[j].append(dict(p,score=round(min(score,.999),4),relation='subject',reason=reason,reference_frame=af,match_frame=bf))
                 else:
                     j=len(groups);groups.append([dict(p,score=1.,reason='主体组参考',relation='reference')]);reps.append(i)
                     gm[gu:gu+len(v)]=v;go[gu:gu+len(v)]=j;gu+=len(v)

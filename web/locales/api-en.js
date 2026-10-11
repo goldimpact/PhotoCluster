@@ -1,5 +1,7 @@
 /* API display fields only; stored caches, paths and identifiers stay unchanged. */
 window.PhotoClusterApiEnglish = {
+  "多个不同区域相近，仍需确认是否同一主体": "Several distinct regions match; verify that this is the same subject",
+  "身份模型特征相近，仍需人工确认": "Identity-model features match; manual review is still required",
   "请先准备主体识别资源": "Prepare subject recognition resources first",
   "主体特征相近，请人工确认": "Similar subject features; review required",
   "分析主体识别线索": "Analyzing subject recognition cues",

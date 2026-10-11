@@ -25,6 +25,7 @@
     $('scanHelp').textContent=(mode==='content'?contentDescriptions[$('contentThreshold').value]:descriptions[mode])||I18n.t('请选择识别方式。');
     if(mode==='content')$('scanHelp').textContent+=I18n.t(' 当前模型比较整幅画面，背景与画风也会影响分组；无法可靠聚齐同一角色的二创、重绘和恶搞图。');
     if(mode==='subject')$('scanHelp').textContent+=({'0.65':I18n.t(' 当前门槛更宽：容忍更多外观变化，也会增加误分组。'),'0.72':I18n.t(' 当前为均衡门槛：建议先检查结果，再调整。'),'0.80':I18n.t(' 当前门槛更严：减少误分组，也可能把同一主体分散。')}[$('subjectThreshold').value]||'');
+    if(mode==='subject')$('scanHelp').textContent+=I18n.t(' 通用匹配需多个不同区域支持；判断冲突时暂不合并。这会减少部分误合并，也可能漏掉跨画风、裁剪或遮挡版本，不能保证主体身份正确。');
     if(mode==='variants')$('scanHelp').textContent+=I18n.t(' 当前扩展：')+ruleText(rules())+(I18n.language==='en'?'.':'。');
     if(['strong','strict','relaxed'].includes(mode))$('scanHelp').textContent+=I18n.t(' 动画使用严格的时间轴抽样验证；非完全相同的视频需使用同源或语义模式。');
     $('scanStrategyHelp').textContent=$('scanStrategy').value==='force'

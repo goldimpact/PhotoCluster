@@ -28,6 +28,15 @@ function harness(initialStatus={running:false,phase:'idle'}){
   return {context,node,scrolls,requests,state,run:code=>vm.runInContext(code,context)};
 }
 const tick=()=>new Promise(setImmediate);
+test('older subject policy clearly requests incremental reclassification',async()=>{
+  const h=harness();await tick();
+  h.run("resultSummary.recognition_outdated=true;renderResultStatus()");
+  assert.match(h.node('resultStatus').textContent,/旧版主体判定结果/);
+  assert.match(h.node('resultStatus').textContent,/增量更新即可/);
+  h.run("scanState.running=true;renderResultStatus()");
+  assert.match(h.node('resultStatus').textContent,/不是本轮实时分组/);
+  assert.match(h.node('resultStatus').textContent,/旧版主体判定结果/);
+});
 test('unmatched folder pages, selects only the page, sorts globally and restores list scroll',async()=>{
   const h=harness();await tick();
   assert.match(h.node('ungroupedFolder').innerHTML,/205/);

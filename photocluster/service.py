@@ -274,6 +274,9 @@ class Service:
                            total_seconds=round(time.perf_counter()-started, 2))
             result = dict(groups=public_groups, ungrouped=ungrouped, summary=summary)
             if mode=='subject':summary['subject_engine']=subject_engine
+            if mode=='subject' and subject_engine=='auto':
+                from .subject_auto import VERSION
+                summary['subject_policy']=VERSION
             self.save('groups.json', result)
             with self.lock:
                 self.result = result

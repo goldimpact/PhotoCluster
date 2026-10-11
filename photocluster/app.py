@@ -246,7 +246,11 @@ def groups(page: int = 1, album: str = '', kind: str = 'all',
         selected = sorted(selected, key=lambda g: len(g['photos']), reverse=True)
     start = max(0, page - 1) * 20
     unmatched = filter_media(result.get('ungrouped', []), album, kind, q)
-    return dict(groups=selected[start:start+20], total=len(selected), summary=result['summary'],
+    summary=dict(result['summary']) if result['summary'] else None
+    if summary and summary.get('mode')=='subject':
+        from .subject_auto import VERSION
+        summary['recognition_outdated']=summary.get('subject_engine')!='auto' or summary.get('subject_policy')!=VERSION
+    return dict(groups=selected[start:start+20], total=len(selected), summary=summary,
                 ungrouped=dict(count=len(unmatched), covers=unmatched[:3], available='ungrouped' in result))
 
 

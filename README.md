@@ -31,6 +31,11 @@ phone folder. You cannot add files to virtual groups.
   check recognition resources** once (about 191 MB total; existing files are reused).
   A unified workflow is not a guarantee of universal identity recognition. Changes
   in style, occlusion, multiple subjects and extreme deformations can still fail.
+  General verification requires multiple one-to-one region matches; conflicting
+  frame routes abstain. This blocks some style-only acceptance paths but can miss
+  crops, occlusion and cross-style positives. Improvement on user-labelled errors
+  remains unvalidated. Older subject results request incremental reclassification;
+  compatible features need not be cleared.
 - **Local cache** in the scan panel shows storage usage and offers confirmed cleanup
   of results, analysis, or the whole media inventory. Phone originals, installed
   models, settings and operation journals are kept. Model/version changes invalidate

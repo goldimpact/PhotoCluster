@@ -37,10 +37,10 @@ def prepare(monkeypatch,gs,cs,masks):
 def test_one_scan_groups_general_and_specialist_matches_without_partitioning(monkeypatch):
     gs=[gv(x) for x in (0,.2,1.8,3)]
     cs=[cv(x) for x in (0,0,0,.2)]
-    requested=prepare(monkeypatch,gs,cs,[np.array([False]),np.array([True]),np.array([True]),np.array([True])])
+    requested=prepare(monkeypatch,gs,cs,[np.array([False]),np.array([False]),np.array([True]),np.array([True])])
     groups=auto.cluster(photos(4),None)
     assert [{p['key'] for p in g} for g in groups]==[{'0','1'},{'2','3'}]
-    assert requested==['1','2','3']
+    assert requested==['2','3']
     assert all(p['relation']=='subject' for g in groups for p in g[1:])
 
 
@@ -58,6 +58,61 @@ def test_specialist_cannot_match_an_ineligible_frame_or_create_chains(monkeypatc
 def test_applicable_identity_disagreement_blocks_shared_style_merge(monkeypatch):
     prepare(monkeypatch,[gv(0),gv(.1)],[cv(0),cv(2)],[np.array([True])]*2)
     assert auto.cluster(photos(2),None)==[]
+
+
+def distinctive_regions():
+    v=np.zeros((1,6,384),np.float32)
+    v[0,0,0]=v[0,1,1]=1
+    for i in range(4):v[0,i+2,i+2]=1
+    return v
+
+
+def test_one_common_region_and_whole_average_are_not_identity_support():
+    a=distinctive_regions();b=a.copy()
+    for i in (3,4,5):
+        b[0,i]=0;b[0,i,i+10]=1
+    assert subject.similarity(a,b)[0]>.99  # Old verifier falsely accepts.
+    assert auto.general_scores(a,b,.72)[0,0]<0
+    # A global patch average also cannot supply three local correspondences.
+    b[0,2]=0;b[0,2,20]=1
+    assert subject.similarity(a,b)[0]>.99
+    assert auto.general_scores(a,b,.72)[0,0]<0
+
+
+def test_many_regions_cannot_all_reuse_one_target_region():
+    a=distinctive_regions();b=a.copy()
+    a[0,2:]=a[0,2]
+    assert subject.similarity(a,b)[0]>.99
+    assert auto.general_scores(a,b,.72)[0,0]<0
+
+
+def test_three_distinct_matches_allow_reordering_and_one_occlusion():
+    a=distinctive_regions();b=a.copy();b[0,2:]=a[0,[4,2,5,3]]
+    b[0,5]=0;b[0,5,20]=1
+    assert auto.general_scores(a,b,.72)[0,0]==pytest.approx(.85)
+    match=auto.verify_pair(a,b,np.array([False]),np.array([False]),None,None,.72)
+    assert match and match[2]=='regions'
+
+
+def test_inconsistent_route_does_not_fall_back_to_style(monkeypatch):
+    prepare(monkeypatch,[gv(0),gv(0)],[cv(0),cv(0)],[np.array([True]),np.array([False])])
+    assert auto.cluster(photos(2),None)==[]
+
+
+def test_all_frame_pairs_checked_after_rejecting_best_style_frame():
+    a=gv(0);b=np.concatenate([gv(0),gv(.2)])
+    match=auto.verify_pair(a,b,np.array([False]),np.array([True,False]),None,None,.72)
+    assert match and match[1][1:]==(0,1)
+
+
+def test_retrieval_remains_a_superset_of_conservative_region_verification():
+    rng=np.random.default_rng(12)
+    for _ in range(40):
+        a=subject.unit(rng.normal(size=(2,6,384)).astype(np.float32))
+        b=subject.unit(a+rng.normal(scale=.02,size=a.shape).astype(np.float32))
+        old=subject.similarity(a,b)[0]
+        for threshold in (.65,.72,.80):
+            assert auto.general_scores(a,b,threshold).max()<=old+1e-6
 
 
 def test_frame_gate_is_pair_specific_and_reports_original_frame_positions(monkeypatch):
@@ -114,6 +169,21 @@ def test_combined_results_invalidate_when_router_or_policy_changes(tmp_path,monk
     assert len(calls)==1 and s.result['summary']['subject_engine']=='auto'
     version[0]='auto-v2';s.worker('test',photos(1),'subject','all',subject_engine='auto')
     assert len(calls)==2 and s.status['phase']=='done'
+    assert s.result['summary']['subject_policy']==auto.VERSION
+
+
+def test_older_subject_results_are_flagged_without_mutating_saved_groups(tmp_path,monkeypatch):
+    import photocluster.app as module
+    from photocluster.service import Service
+    from fastapi.testclient import TestClient
+    s=Service(tmp_path);monkeypatch.setattr(module,'service',s)
+    summary=dict(mode='subject',subject_engine='auto')
+    s.result={'groups':[],'summary':summary,'ungrouped':[]}
+    with TestClient(module.app) as client:
+        assert client.get('/api/groups').json()['summary']['recognition_outdated'] is True
+        summary['subject_policy']=auto.VERSION
+        assert client.get('/api/groups').json()['summary']['recognition_outdated'] is False
+    assert 'recognition_outdated' not in summary
 
 
 @pytest.mark.parametrize('valid',[True,False])

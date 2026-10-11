@@ -14,6 +14,7 @@ function renderResultStatus(){
     ?previous?I18n.msg`本轮分类进行中。下方显示上次结果（完成于 ${when}），不是本轮实时分组；本轮完整结束后自动替换。扫描期间不能删除或移动文件。`:I18n.t('本轮分类进行中，尚无已完成的结果；全部处理结束后才会显示本轮分组。')
     :interrupted?previous?I18n.msg`本轮${scanState.phase==='error'?I18n.t('失败'):I18n.t('已停止')}，没有生成新的完整分组。下方仍是上次结果（完成于 ${when}）。`:I18n.msg`本轮${scanState.phase==='error'?I18n.t('失败'):I18n.t('已停止')}，尚无已完成的分类结果。`
     :previous?I18n.msg`下方为最近一次已完成的分类结果（${when}），不是实时分类。`:I18n.t('尚无已完成的分类结果。');
+  if(resultSummary?.recognition_outdated)$('resultStatus').textContent+=I18n.t(' 当前仍是旧版主体判定结果；点击“同步并分类”应用新规则，增量更新即可，无需清空特征缓存。');
   $('resultStatus').dataset.state=running||interrupted?'previous':'saved';
   $('groupCount').parentElement.querySelector('span').textContent=running||interrupted?I18n.t('上次结果 · 相似媒体组'):I18n.t('相似媒体组');
 }

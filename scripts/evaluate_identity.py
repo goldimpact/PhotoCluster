@@ -15,7 +15,7 @@ from pathlib import Path
 from PIL import Image
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from photocluster import character,subject
+from photocluster import character,subject,subject_auto
 
 
 def counts(rows,field):
@@ -27,22 +27,25 @@ def evaluate(manifest):
     manifest=Path(manifest);data=json.loads(manifest.read_text('utf-8'))
     ids=[x['id'] for x in data['items']]
     if len(set(ids))!=len(ids):raise ValueError('Duplicate item IDs')
-    features={};timings={'dino':0.,'ccip':0.}
+    features={};timings={'dino':0.,'ccip':0.,'routing':0.}
     for item in data['items']:
         with Image.open(manifest.parent/item['path']) as source:im=source.convert('RGB')
         start=time.perf_counter();dino=subject.encode([im]);timings['dino']+=time.perf_counter()-start
         start=time.perf_counter();ccip=character.encode([im]);timings['ccip']+=time.perf_counter()-start
-        features[item['id']]=(dino,ccip)
+        start=time.perf_counter();gate=subject_auto.eligible(subject_auto.routing_scores([im]));timings['routing']+=time.perf_counter()-start
+        features[item['id']]=(dino,ccip,gate)
     rows=[]
     for pair in data['pairs']:
         if type(pair['same']) is not bool:raise ValueError('Pair labels must be boolean')
         a,b=features[pair['a']],features[pair['b']]
         old=subject.similarity(a[0],b[0])[0];new=character.similarity(a[1],b[1])[0]
+        combined=subject_auto.verify_pair(a[0],b[0],a[2],b[2],a[1],b[1],.72)
         rows.append(dict(a=pair['a'],b=pair['b'],same=pair['same'],dino_score=old,ccip_distance=1-new,
-                         dino_match=old>=.72,ccip_match=new>=character.DEFAULT_THRESHOLD))
-    return dict(models={'dino':subject.model_identity(),'ccip':character.model_identity()},
+                         dino_match=old>=.72,ccip_match=new>=character.DEFAULT_THRESHOLD,
+                         unified_match=combined is not None,unified_route=combined[2] if combined else None))
+    return dict(models={'dino':subject.model_identity(),'ccip':character.model_identity(),'unified':subject_auto.model_identity()},
                 thresholds={'dino':.72,'ccip_distance':character.DEFAULT_DISTANCE},seconds=timings,
-                counts={'dino':counts(rows,'dino_match'),'ccip':counts(rows,'ccip_match')},pairs=rows)
+                counts={'dino':counts(rows,'dino_match'),'ccip':counts(rows,'ccip_match'),'unified':counts(rows,'unified_match')},pairs=rows)
 
 
 if __name__=='__main__':

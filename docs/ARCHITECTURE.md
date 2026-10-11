@@ -46,8 +46,10 @@ See [subject grouping](SUBJECT-GROUPING.md) for the exact score and limitations.
 The UI has one automatic subject workflow, with no category/model selector.
 `subject_auto.py` combines general vectors with per-frame supplemental evidence
 enabled by a local style classifier. It is not a subject detector or universal
-identity classifier. Eligible frame pairs use identity evidence to resolve style
-similarity disagreements; other frame pairs still use the general route. All
+identity classifier. Eligible frame pairs use identity evidence; inconsistent
+frame routes abstain instead of falling back to style. General matches require
+three of four one-to-one spatial region correspondences and use their mean,
+not a single maximum region. The regions still overlap and do not locate subjects. All
 members must match their original reference directly. Legacy API engines remain
 available for compatibility but the UI always sends `auto`; obsolete saved engine
 settings are ignored. Model/feature caches stay separate and the combined result

@@ -50,6 +50,8 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
   category/model selectors. It uses frame-specific routing for supplemental evidence;
   every input retains the general route. Version all contributing models/policies,
   preserve original-reference checks, and never advertise universal identity accuracy.
+  Inconsistent frame routes abstain. General verification needs distinct one-to-one
+  region support; do not restore single-region maxima as the final acceptance rule.
 - cache.py cleanup is local and allowlisted, requires an expiring preview token,
   rejects scans/syncs, shares the operation lock and invalidates pending file plans.
   Keep models, settings, journals, unknown files and other instances; never call ADB.
