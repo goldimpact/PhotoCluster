@@ -114,7 +114,7 @@ test('English page renders settings, progress, groups and permanent deletion con
 test('language reload restores scope, mode, filters and album selections without starting a scan',async()=>{
   const h=await app('zh',{mode:'content',scope:'album',scanTarget:'selected',contentThreshold:'0.77',groupSort:'oldest',search:'我的照片',selection:{serial:'test-device',paths:[]}});
   try{const d=h.w.document;assert.equal(d.documentElement.lang,'zh-CN');assert.equal(d.getElementById('scope').value,'album');
-    assert.match(d.getElementById('scanHelp').textContent,/相似角色与风格/);
+    assert.match(d.getElementById('scanHelp').textContent,/相近内容与画风/);
     assert.equal(d.querySelector('.album input').checked,false);assert.equal(d.getElementById('search').value,'我的照片');
     assert.equal(h.w.sessionStorage.getItem('photocluster.languageView'),null);
     assert.ok(h.requests.every(r=>!r.options?.method));

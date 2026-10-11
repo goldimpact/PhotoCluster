@@ -21,7 +21,9 @@ phone folder. You cannot add files to virtual groups.
   optional perspective and mild warp correction. Warp correction is expensive and
   off by default.
 - Semantic similarity: an optional local CLIP model groups related scenes across
-  images, animation frames and video keyframes.
+  images, animation frames and video keyframes. It compares whole-image appearance;
+  it does not reliably identify one character across fan art, redrawings and memes.
+  A broader threshold may mix different subjects rather than resolve their identity.
 - Fast, enhanced and relaxed near-duplicate modes for comparing copies.
 - Ungrouped media and damaged-file review cards; originals on demand, looping
   viewer navigation, pointer-centered zoom and side-by-side comparison.

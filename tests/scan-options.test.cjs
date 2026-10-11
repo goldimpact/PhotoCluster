@@ -23,8 +23,9 @@ test('all five modes have their own help; strategy changes never overwrite it',(
 });
 test('content threshold explains each choice immediately',()=>{
   const h=harness();h.change('mode','content');
-  for(const [v,text] of [['0.77','相似角色与风格'],['0.90','高度相近画面'],['0.84','相近场景']]){
+  for(const [v,text] of [['0.77','相近内容与画风'],['0.90','高度相近画面'],['0.84','相近场景']]){
     h.change('contentThreshold',v);assert.ok(h.$('scanHelp').textContent.includes(text));
+    assert.match(h.$('scanHelp').textContent,/无法可靠聚齐同一角色/);
   }
 });
 test('rules default warp off, persist, remain selected across modes, and disable during scan',()=>{

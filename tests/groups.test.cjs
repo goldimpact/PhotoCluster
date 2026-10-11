@@ -46,14 +46,21 @@ test('unmatched folder pages, selects only the page, sorts globally and restores
   assert.equal(h.node('ungroupedFolder').hidden,false);
 });
 
-test('back-to-top is shared, conditional and respects reduced motion',()=>{
+test('back control targets the results section, follows layout changes and respects reduced motion',()=>{
   const code=fs.readFileSync('web/enhancements.js','utf8');
   const fragment=code.slice(code.indexOf("  const top=byId('backTop')"),code.indexOf("  byId('syncInfo')"));
-  const button={};const events={};let scroll;
-  const context={byId:()=>button,window:{scrollY:0,addEventListener:(name,fn)=>events[name]=fn,matchMedia:()=>({matches:true}),scrollTo:v=>scroll=v}};
+  const button={};const events={};let scroll,anchor=700,reduced=true,onResize;
+  const context={byId:()=>button,window:{scrollY:0,addEventListener:(name,fn)=>events[name]=fn,matchMedia:()=>({matches:reduced}),scrollTo:v=>scroll=v},
+    document:{querySelector:()=>({getBoundingClientRect:()=>({top:anchor-context.window.scrollY})})},
+    ResizeObserver:class{constructor(fn){onResize=fn;}observe(){}}};
   vm.runInNewContext(fragment,context);assert.equal(button.hidden,true);
-  context.window.scrollY=900;events.scroll();assert.equal(button.hidden,false);
-  button.onclick();assert.equal(scroll.top,0);assert.equal(scroll.behavior,'instant');
+  context.window.scrollY=900;events.scroll();assert.equal(button.hidden,true);
+  context.window.scrollY=1400;events.scroll();assert.equal(button.hidden,false);
+  button.onclick();assert.equal(scroll.top,684);assert.equal(scroll.behavior,'instant');
+  anchor=1100;onResize();assert.equal(button.hidden,true);
+  context.window.scrollY=2000;events.resize();assert.equal(button.hidden,false);
+  reduced=false;button.onclick();assert.equal(scroll.top,1084);assert.equal(scroll.behavior,'smooth');
+  context.window.scrollY=1084;events.scroll();assert.equal(button.hidden,true);
 });
 
 test('running scan labels saved groups and stopped/error states never imply new results',async()=>{
