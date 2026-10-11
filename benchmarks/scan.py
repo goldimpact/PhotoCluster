@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from photocluster import adb, vision
+from photocluster.config import DATA
 
 
 def main():
@@ -17,7 +18,7 @@ def main():
     parser.add_argument('--count',type=int,default=36)
     parser.add_argument('--baseline',type=Path,help='Optional local Python baseline snapshot')
     args=parser.parse_args()
-    catalog=json.loads((ROOT/'data/catalog.json').read_text('utf-8'))
+    catalog=json.loads((DATA/'catalog.json').read_text('utf-8'))
     candidates=[p for p in catalog['photos'] if p['path'].lower().endswith(('.jpg','.jpeg')) and p['size'] < 8*1024**2]
     # Interleave camera and other pictures to represent both decode workloads.
     camera=[p for p in candidates if p['album'].endswith('/Camera')]
@@ -36,7 +37,7 @@ def main():
         spec=importlib.util.spec_from_file_location('baseline',args.baseline)
         baseline=importlib.util.module_from_spec(spec);spec.loader.exec_module(baseline)
         versions.insert(0,('old',baseline,3))
-    output=ROOT/'data/benchmarks/scan';output.mkdir(parents=True,exist_ok=True)
+    output=DATA/'benchmarks/scan';output.mkdir(parents=True,exist_ok=True)
     results={}
     for name,module,workers in versions:
         def process(item):
@@ -50,7 +51,7 @@ def main():
     result=dict(count=len(photos),bytes=sum(len(raw) for _,raw in individual),
                 individual_read_seconds=single_seconds,batch_read_seconds=batch_seconds,
                 old_features_seconds=results.get('old'),new_features_seconds=results['new'])
-    (ROOT/'data/benchmarks/scan.json').write_text(json.dumps(result),'utf-8')
+    (DATA/'benchmarks/scan.json').write_text(json.dumps(result),'utf-8')
     print(json.dumps(result),flush=True)
 
 

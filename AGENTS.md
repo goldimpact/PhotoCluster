@@ -7,7 +7,8 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
 ## Product boundaries
 
 - Android via ADB is the implemented device backend. iOS is planned and untested;
-  do not advertise it as supported. Windows is the primary tested desktop host.
+  do not advertise it as supported. Focus on Windows/Linux Android workflows;
+  macOS and iOS work is deferred until hardware is available.
 - Classification folders are virtual views. Never create them on a phone, import
   files into them, or choose phone destinations implicitly.
 - Delete only explicitly selected phone files after a reviewed operation preview.
@@ -41,6 +42,10 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
   acceleration.py / geometry_gpu.py: retrieval, caching and optional acceleration.
 - media.py / video.py: recovery and temporary original lifetimes.
 - web/: plain browser JavaScript/CSS, no production build or npm dependency.
+- config.py owns host data/model paths. Windows uses .venv and Linux .venv-linux.
+  WSL defaults to data/wsl; never reuse Windows feature paths in a Linux cache.
+  adb.py supports one PHOTOCLUSTER_ADB executable override and WSL adb.exe fallback;
+  Windows adb pull destinations need wslpath conversion. Keep streams binary.
 - Read relevant tests before changing behavior. Keep bounded memory/work queues
   and CPU fallbacks; do not trade recognition thresholds for undocumented speed.
 - If extraction, matching or model semantics change, inspect feature versions,
@@ -75,8 +80,10 @@ npm test
 git diff --check
 ```
 
-Use .venv/Scripts/python.exe on Windows if available. Core tests use synthetic
-media and mocked devices. FFmpeg/model/CUDA tests skip when unavailable; do not
+Use .venv/Scripts/python.exe on Windows and .venv-linux/bin/python on Linux.
+scripts/check_android.py is an explicit,
+read-only real-phone check with temporary caches. Do not run it automatically in CI.
+Core tests use synthetic media and mocked devices. FFmpeg/model/CUDA tests skip when unavailable; do not
 download a model just to force those tests to run. A jsdom or VM test verifies
 logic, not real browser layout. State visual-testing limits honestly.
 

@@ -11,8 +11,7 @@ from pathlib import Path
 from . import adb, vision
 from .rules import normalize_rules,pair_version
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / 'data'
+from .config import ROOT, DATA
 THUMBS = DATA / 'thumbnails'
 
 

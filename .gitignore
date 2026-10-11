@@ -1,4 +1,5 @@
 .venv/
+.venv-linux/
 data/
 __pycache__/
 .pytest_cache/

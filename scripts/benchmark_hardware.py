@@ -25,14 +25,15 @@ def main():
     parser.add_argument('--warp',action='store_true',help='Enable the optional high-cost warp verification')
     args=parser.parse_args()
     from photocluster.service import Service
+    from photocluster.config import DATA
     from photocluster import variants,semantic,vision
     if args.baseline and args.mode=='content':
         import importlib.util
-        spec=importlib.util.spec_from_file_location('photocluster.baseline_semantic',ROOT/'data/benchmarks/hardware/semantic.py')
+        spec=importlib.util.spec_from_file_location('photocluster.baseline_semantic',DATA/'benchmarks/hardware/semantic.py')
         semantic=importlib.util.module_from_spec(spec);spec.loader.exec_module(semantic)
     elif args.baseline and args.mode=='variants':
         import importlib.util
-        spec=importlib.util.spec_from_file_location('photocluster.baseline_variants',ROOT/'data/benchmarks/geometry/variants.py')
+        spec=importlib.util.spec_from_file_location('photocluster.baseline_variants',DATA/'benchmarks/geometry/variants.py')
         original=importlib.util.module_from_spec(spec);spec.loader.exec_module(original)
         variants.frame_match=original.frame_match
         variants.tile_score=original.tile_score

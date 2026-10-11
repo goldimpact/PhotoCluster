@@ -4,12 +4,37 @@ import shlex
 import subprocess
 import tarfile
 import threading
+import os
+import shutil
+from pathlib import Path
+
+from .config import is_wsl
 
 COLUMNS = ['_id', '_data', '_size', 'date_modified', 'width', 'height', 'bucket_id', 'bucket_display_name', 'datetaken']
 
 
+def executable():
+    # An override is one executable path, never a shell command or argument string.
+    configured = os.environ.get('PHOTOCLUSTER_ADB')
+    if configured:
+        return configured
+    return shutil.which('adb') or (shutil.which('adb.exe') if is_wsl() else None) or 'adb'
+
+
+def local_destination(path):
+    if is_wsl() and executable().lower().endswith('.exe'):
+        # Windows adb must receive a Windows path, including for Linux /tmp files.
+        result = subprocess.run(['wslpath', '-w', str(Path(path).resolve())],
+                                capture_output=True, timeout=10, check=True)
+        return result.stdout.decode('utf-8').strip()
+    return str(path)
+
+
 def run(args, timeout=120):
-    result = subprocess.run(['adb', *args], capture_output=True, timeout=timeout)
+    try:
+        result = subprocess.run([executable(), *args], capture_output=True, timeout=timeout)
+    except FileNotFoundError:
+        raise RuntimeError('ADB not found. Install Android Platform Tools or set PHOTOCLUSTER_ADB to its executable path.') from None
     if result.returncode:
         raise RuntimeError(result.stderr.decode('utf-8', 'replace').strip() or 'ADB 命令失败')
     return result.stdout
@@ -52,7 +77,7 @@ def inventory(serial):
 
 def pull_file(serial, path, destination):
     # A subprocess argument list keeps remote/local names out of shell parsing.
-    run(['-s',serial,'pull',path,str(destination)],timeout=1800)
+    run(['-s',serial,'pull',path,local_destination(destination)],timeout=1800)
 
 
 def read_photo(serial, path):
@@ -70,7 +95,7 @@ def read_batch(serial, photos, timeout=90):
     # archive names to avoid the leading-slash warning corrupting the stream,
     # and discard remote diagnostics; omitted files are retried individually.
     command = 'tar -cf - -C / -- ' + ' '.join(shlex.quote(p['path'].lstrip('/')) for p in photos) + ' 2>/dev/null'
-    process = subprocess.Popen(['adb', '-s', serial, 'exec-out', command],
+    process = subprocess.Popen([executable(), '-s', serial, 'exec-out', command],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     timer = threading.Timer(timeout, process.kill)
     timer.daemon = True

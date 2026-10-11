@@ -12,11 +12,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+from photocluster.config import DATA
 
 
 def load_photos(limit=0):
-    catalog = json.loads((ROOT/'data/catalog.json').read_text('utf-8'))
-    with sqlite3.connect(ROOT/'data/catalog.sqlite3') as con:
+    catalog = json.loads((DATA/'catalog.json').read_text('utf-8'))
+    with sqlite3.connect(DATA/'catalog.sqlite3') as con:
         cached = {key: json.loads(payload) for key, payload in con.execute('SELECT key,payload FROM features')}
     photos = [dict(p, **cached[p['key']]) for p in catalog['photos'] if p['key'] in cached]
     # Deterministic spread across the entire library, not only the oldest files.
@@ -32,7 +33,7 @@ def main():
     parser.add_argument('--tag', default='run')
     args = parser.parse_args()
     if args.baseline:
-        spec = importlib.util.spec_from_file_location('vision_baseline', ROOT/'data/benchmarks/vision_baseline.py')
+        spec = importlib.util.spec_from_file_location('vision_baseline', DATA/'benchmarks/vision_baseline.py')
         vision = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(vision)
     else:
@@ -48,8 +49,8 @@ def main():
     elapsed = time.perf_counter()-started
     result = dict(seconds=elapsed, count=len(photos), groups=len(groups),
                   members=[sorted(p['key'] for p in group) for group in groups])
-    target = ROOT/'data/benchmarks'/f'{args.tag}.json'
-    target.parent.mkdir(exist_ok=True)
+    target = DATA/'benchmarks'/f'{args.tag}.json'
+    target.parent.mkdir(parents=True,exist_ok=True)
     target.write_text(json.dumps(result), 'utf-8')
     print(json.dumps({k:v for k,v in result.items() if k!='members'}),flush=True)
     if args.profile:

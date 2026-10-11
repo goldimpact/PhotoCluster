@@ -12,11 +12,11 @@ from scripts import setup_semantic
 
 @pytest.mark.parametrize('valid', [False, True])
 def test_download_checksum_before_loading_or_replacing(tmp_path, monkeypatch, valid):
-    monkeypatch.setattr(setup_semantic, 'ROOT', tmp_path)
     monkeypatch.setattr(sys, 'argv', ['setup_semantic.py'])
     folder = tmp_path / 'data/models'
     folder.mkdir(parents=True)
     target = folder / 'clip-vision-int8.onnx'
+    monkeypatch.setattr(setup_semantic, 'MODEL', target)
     target.write_bytes(b'previous model')
     content = b'synthetic model payload'
     monkeypatch.setattr(setup_semantic, 'SHA256', hashlib.sha256(content if valid else b'other').hexdigest())

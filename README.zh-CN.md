@@ -6,7 +6,8 @@
 虚拟文件夹。查看、对比后，可直接删除手机上的所选原文件，或移动到手机真实目录。
 媒体分析与界面翻译全部在本地进行。
 
-**当前支持 Android；主要实测桌面环境是 Windows。iOS 仍在规划中，尚未实现或真机验证。**
+**当前重点是 Windows / Linux 操作 Android。macOS 和 iOS 等具备设备后再推进，iOS 尚未实现。**
+Linux 与 WSL 的启动、连接方式及验证边界见 [Linux / WSL 指南](docs/LINUX.md)。
 
 ## 虚拟文件夹是什么
 
@@ -63,9 +64,11 @@ CPU INT8，GPU 用于部分检索和特征匹配，不能保证每个阶段都�
 .\.venv\Scripts\python.exe -m uvicorn photocluster.app:app --host 127.0.0.1 --port 8765
 ```
 
-其他桌面系统可手动建立并激活虚拟环境，执行 `python -m pip install -r requirements.txt`，
-按需运行 `python scripts/setup_semantic.py`，再启动 Uvicorn。仍需自行验证该系统的
-ADB、FFmpeg、USB 权限与真机流程。`requirements-lock.txt` 是实测 Windows Python 3.11
+Linux 安装 Python 3.11+、ADB、FFmpeg 后，运行 `bash start.sh --check` 完成安装检查，
+再用 `bash start.sh --no-install` 启动。Linux 使用独立的 `.venv-linux` 环境；WSL 默认
+缓存位于 `data/wsl/`，可复用 Windows 已连接的 `adb.exe`。Windows 已占用 8765 端口时，
+WSL 加上 `--port 8766`。Ubuntu 22.04 的 Python 升级、USB 权限与代理差异详见指南。
+`requirements-lock.txt` 是实测 Windows Python 3.11
 CPU 依赖快照，GPU 依赖单独列出。日常使用不需要 Node/npm。
 
 ## 同步与文件操作
@@ -123,7 +126,8 @@ CI 在 Windows / Ubuntu 运行 CPU 测试。VM / jsdom 是界面逻辑测试，�
 与 [速度图](docs/SPEED-CHART.md)。只读性能脚本需要使用者自己的扫描缓存，输出保留在
 `data/`；旧的个人实验报告及私有基线快照不随公开仓库发布。
 
-后续计划：iOS 设备发现、系统许可范围内的媒体读取及管理能力，并进行真机验证；更多
+近期先完善 Windows / Linux 的 Android 使用流程与验证。具备硬件后，再推进 macOS、
+iOS 设备发现、系统许可范围内的媒体读取及管理能力，并进行真机验证；更多
 桌面 / 设备兼容性与真实浏览器验证；可复现的识别与性能评估。iOS 不会直接套用 Android
 的任意文件路径操作假设。
 

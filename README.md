@@ -6,8 +6,9 @@ Find duplicate and similar **images, GIFs and videos** on an Android phone from
 your computer. Review results in virtual folders, view originals, and choose which
 phone files to delete or move. All analysis runs locally.
 
-**Currently supported:** Android over ADB. Windows is the primary tested desktop
-host. **iOS is planned; no iOS backend or device validation is available yet.**
+**Current focus:** Windows and Linux desktop hosts with Android over ADB.
+See the [Linux / WSL guide](docs/LINUX.md) for setup and verification boundaries.
+**macOS and iOS are deferred; iOS access is not implemented.**
 
 ## How it works
 
@@ -74,10 +75,11 @@ For subsequent launches without checking/installing dependencies:
 .\.venv\Scripts\python.exe -m uvicorn photocluster.app:app --host 127.0.0.1 --port 8765
 ```
 
-Manual setup on another desktop host uses `python -m venv .venv`, activation,
-`python -m pip install -r requirements.txt`, optional
-`python scripts/setup_semantic.py`, then the same Uvicorn command. ADB, FFmpeg,
-USB permissions and the real-device workflow must be verified on that host.
+On Linux with Python 3.11+, ADB and FFmpeg installed, run `bash start.sh --check`,
+then `bash start.sh --no-install`. The Linux environment is `.venv-linux`.
+WSL can reuse Windows `adb.exe`; its default cache is isolated in `data/wsl/`.
+Use `--port 8766` if Windows is already using port 8765. See the Linux guide for
+Ubuntu 22.04 Python setup, USB permissions, proxy differences and explicit ADB selection.
 `requirements-lock.txt` records the tested Windows Python 3.11 CPU dependency
 snapshot; `requirements-gpu.txt` is separate. Node/npm are needed only for UI tests.
 
@@ -148,7 +150,8 @@ Old personal experiment reports and private baseline snapshots are not distribut
 
 ## Roadmap and license
 
-- iOS device discovery, permitted library access and file-management capabilities,
+- First, improve Windows/Linux Android workflows and validation.
+- Later, when hardware is available: macOS validation and iOS device discovery, permitted library access and file-management capabilities,
   followed by real-device validation. Android filesystem assumptions must not be
   carried over to iOS without checking platform permissions.
 - Broader desktop/device compatibility and real-browser UI coverage.

@@ -2,17 +2,25 @@
 import argparse
 import hashlib
 import json
+import sys
 import urllib.request
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from photocluster.config import MODEL
 REVISION='d15189d7028b43f1d3e65039190477f6af591c2a'
 SHA256='583fd1110a514667812fee7d684952aaf82a99b959760c8d7dca7e0ab9839299'
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--proxy',default='');args=parser.parse_args()
     opener=urllib.request.build_opener(urllib.request.ProxyHandler({'http':args.proxy,'https':args.proxy}) if args.proxy else urllib.request.ProxyHandler())
-    revision=REVISION;folder=ROOT/'data/models';folder.mkdir(parents=True,exist_ok=True)
-    target=folder/'clip-vision-int8.onnx';temp=target.with_suffix('.download')
+    revision=REVISION;target=MODEL;folder=target.parent;folder.mkdir(parents=True,exist_ok=True)
+    if target.exists():
+        with target.open('rb') as source:
+            if hashlib.file_digest(source,'sha256').hexdigest()==SHA256:
+                print('Pinned semantic model already installed.')
+                return
+    temp=target.with_suffix('.download')
     url=f'https://huggingface.co/Xenova/clip-vit-base-patch32/resolve/{revision}/onnx/vision_model_quantized.onnx'
     digest=hashlib.sha256();count=0
     with opener.open(url,timeout=60) as source,temp.open('wb') as output:

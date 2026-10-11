@@ -26,6 +26,9 @@ transitive chains. Candidate caps and frame sampling trade recall for bounded co
 
 The private `data/` directory stores the inventory, thumbnails, recovered frames,
 SQLite features/vectors/pair comparisons, saved groups and an operation journal.
+WSL defaults to `data/wsl/` so Linux does not reuse Windows-specific feature paths.
+`PHOTOCLUSTER_DATA_DIR` overrides the cache root and `PHOTOCLUSTER_MODEL` can select
+a separately stored local model. Never share a writable cache between instances.
 File keys include device identity, path, size and modification time. Changes hidden
 by unchanged size/timestamps require a full recomputation.
 

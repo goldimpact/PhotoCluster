@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageOps
 
-MODEL=Path(__file__).resolve().parent.parent/'data/models/clip-vision-int8.onnx'
+from .config import MODEL
 VERSION='clip-vit-b32-int8-v1'
 _session=None
 _lock=threading.Lock()
