@@ -182,10 +182,15 @@ def cache_clear(body: CacheToken):
 @app.get('/api/subject-model')
 def subject_model(engine: Literal['auto','general','anime']='auto'):
     from .subject import backend
-    from . import perceptual
+    from . import perceptual, complementary, identity_refine, domain_refine, local_context, identity_extra
     encoder=backend(engine)
     return dict(installed=encoder.installed() if engine=='auto' else encoder.MODEL.exists(), version=encoder.VERSION,engine=engine,
-                perceptual=engine=='auto' and perceptual.installed())
+                perceptual=engine=='auto' and perceptual.installed(),
+                complementary=engine=='auto' and complementary.installed(),
+                identity_refine=engine=='auto' and complementary.installed() and identity_refine.installed(),
+                domain_refine=engine=='auto' and complementary.installed() and identity_refine.installed() and domain_refine.installed(),
+                local_context=engine=='auto' and local_context.installed(),
+                identity_extra=engine=='auto' and identity_extra.installed())
 
 
 class SubjectModelInstall(BaseModel):
@@ -251,9 +256,14 @@ def groups(page: int = 1, album: str = '', kind: str = 'all',
     summary=dict(result['summary']) if result['summary'] else None
     if summary and summary.get('mode')=='subject':
         from .subject_auto import VERSION
-        from . import perceptual
+        from . import perceptual, complementary, identity_refine, domain_refine, local_context, identity_extra
         summary['recognition_outdated']=(summary.get('subject_engine')!='auto' or summary.get('subject_policy')!=VERSION
-                                        or summary.get('subject_perceptual',False)!=perceptual.installed())
+                                        or summary.get('subject_perceptual',False)!=perceptual.installed()
+                                        or summary.get('subject_complementary',False)!=complementary.installed()
+                                        or summary.get('subject_identity_refine',False)!=(complementary.installed() and identity_refine.installed())
+                                        or summary.get('subject_domain_refine',False)!=(complementary.installed() and identity_refine.installed() and domain_refine.installed())
+                                        or summary.get('subject_local_context',False)!=local_context.installed()
+                                        or summary.get('subject_identity_extra',False)!=identity_extra.installed())
     return dict(groups=selected[start:start+20], total=len(selected), summary=summary,
                 ungrouped=dict(count=len(unmatched), covers=unmatched[:3], available='ungrouped' in result))
 

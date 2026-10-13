@@ -58,10 +58,14 @@ def encode(images, cancelled=lambda: False):
 
 
 class VectorCache:
-    def __init__(self, thumbs, cancelled=lambda: False, force=False):
+    def __init__(self, thumbs, cancelled=lambda: False, force=False, *, identity=None, encoder=None,
+                 database='subject-perceptual.sqlite3', dim=DIM):
         self.thumbs = Path(thumbs); self.cancelled = cancelled; self.force = force
-        self.identity = model_identity(); self.memory = OrderedDict(); self.pending = 0
-        self.con = sqlite3.connect(self.thumbs/'subject-perceptual.sqlite3', timeout=30)
+        self.identity = model_identity() if identity is None else identity
+        self.encoder = encode if encoder is None else encoder; self.dim = dim
+        self.memory = OrderedDict(); self.pending = 0
+        self.refreshed = set()  # Keys only; force recomputes each identity once/job.
+        self.con = sqlite3.connect(self.thumbs/database, timeout=30)
         self.con.execute('CREATE TABLE IF NOT EXISTS vectors (key TEXT PRIMARY KEY, sha TEXT, version TEXT, data BLOB)')
 
     def get(self, photo):
@@ -73,13 +77,14 @@ class VectorCache:
         if cache_key in self.memory:
             self.memory.move_to_end(cache_key)
             return self.memory[cache_key]
-        row = None if self.force else self.con.execute('SELECT sha,version,data FROM vectors WHERE key=?', (key,)).fetchone()
+        row = None if self.force and cache_key not in self.refreshed else self.con.execute('SELECT sha,version,data FROM vectors WHERE key=?', (key,)).fetchone()
         if row and row[:2] == (photo['sha256'], identity):
-            value = np.frombuffer(row[2], np.float32).reshape(-1, DIM)
+            value = np.frombuffer(row[2], np.float32).reshape(-1, self.dim)
         else:
-            value = encode(frames(photo, self.thumbs), self.cancelled)
+            value = self.encoder(frames(photo, self.thumbs), self.cancelled)
             if value is None:return None
             self.con.execute('INSERT OR REPLACE INTO vectors VALUES (?,?,?,?)', (key, photo['sha256'], identity, value.tobytes()))
+            if self.force:self.refreshed.add(cache_key)
             self.pending += 1
             if self.pending >= 32:self.con.commit(); self.pending = 0
         self.memory[cache_key] = value

@@ -24,7 +24,7 @@ def test_rule_combinations_isolate_match_and_pair_caches(tmp_path,monkeypatch):
     service=Service(tmp_path);p=dict(key='p',sha256='h',size=1)
     monkeypatch.setattr(service,'scan_photos',lambda serial,photos,processed,errors,started:processed.extend(photos))
     calls=[]
-    def cluster(photos,scope,progress,cancelled,force,cache,rules):
+    def cluster(photos,scope,progress,cancelled,force,cache,rules,feature_stats=None):
         ids,b,found=cache.query([p],p);calls.append((dict(rules),bool(found)))
         cache.save(ids,b,[None]);return []
     monkeypatch.setattr(variants,'cluster',cluster)

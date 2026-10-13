@@ -1,5 +1,12 @@
 /* API display fields only; stored caches, paths and identifiers stay unchanged. */
 window.PhotoClusterApiEnglish = {
+  "按需联合核验主体身份": "Combining identity evidence on demand",
+  "复核未归组媒体的主体证据": "Reviewing identity evidence for ungrouped media",
+  "复用身份特征补查候选": "Reusing identity features to find additional candidates",
+  "按需核验主体局部细节": "Reviewing local subject details on demand",
+  "提取主体补充复核特征": "Extracting complementary subject features",
+  "查找遗漏的主体组关联": "Finding missed subject group candidates",
+  "复核主体组与共同参考图": "Reviewing subject groups and common references",
   "多模型候选核验通过，仍需人工确认主体": "Passed combined candidate verification; review subject identity",
   "核验候选主体的感知细节": "Verifying perceptual details of candidate subjects",
   "多个不同区域相近，仍需确认是否同一主体": "Several distinct regions match; verify that this is the same subject",
@@ -98,6 +105,7 @@ window.PhotoClusterApiEnglish = {
   "本地模型分析关键帧内容": "Analyzing keyframes with the local model",
   "跨格式内容归组": "Grouping content across formats",
   "提取同源画面特征（本地缓存）": "Extracting same-source features (local cache)",
+  "同源特征：复用 {0} 个，计算 {1} 个": "Same-source features: {0} reused, {1} computed",
   "验证同源画面与几何变换": "Verifying shared scenes and geometric transformations",
   "已停止，图片特征已保存": "Stopped; features saved",
   "本次扫描范围及模式下未找到匹配": "No match within this scan's scope and mode",

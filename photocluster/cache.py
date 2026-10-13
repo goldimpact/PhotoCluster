@@ -47,7 +47,7 @@ def inventory(service):
                 known = (folder=='models' or
                          folder=='matches' and re.fullmatch(r'[a-f0-9]{64}\.json',p.name) or
                          folder=='thumbnails' and (re.fullmatch(r'[a-f0-9]{64}\.(?:jpg|npz|frames\.npz|variants\.npz|clip\.npz)',p.name) or
-                         re.fullmatch(r'(?:embeddings|subjects|characters|subject-routing|subject-perceptual)\.sqlite3(?:-wal|-shm)?',p.name)))
+                         re.fullmatch(r'(?:embeddings|subjects|characters|subject-routing|subject-perceptual|subject-complementary|subject-identity-refine|subject-domain-refine|subject-local-context|subject-identity-extra|variant-index)\.sqlite3(?:-wal|-shm)?',p.name)))
                 if known and _regular(p, root):
                     paths[kind].append(p)
     return paths

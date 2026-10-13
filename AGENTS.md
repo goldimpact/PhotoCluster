@@ -40,6 +40,10 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
   publication; adb.py: MediaStore/transport; operations.py: phone mutations.
 - vision.py / variants.py / semantic.py: recognition; index.py / pair_cache.py /
   acceleration.py / geometry_gpu.py: retrieval, caching and optional acceleration.
+- variant_cache.py indexes only retrieval metadata; validate source SHA, sampling,
+  extractor version and archive stat before reuse. Keep descriptor archives
+  authoritative, bounded extraction queues, input ordering, atomic NPZ writes and
+  allowlisted cleanup. Query pair verdicts before decompressing cached descriptors.
 - subject.py is experimental automatic DINOv2 region grouping, not validated
   character identity recognition. Preserve direct-reference checks, zero duplicate
   savings and model SHA/version isolation; do not claim cross-style accuracy without data.
@@ -55,10 +59,68 @@ precedence. Do not assume a phone, CUDA device, model or browser is available.
   preserve original-reference checks, and never advertise universal identity accuracy.
   Inconsistent frame routes abstain. General verification needs distinct one-to-one
   region support; do not restore single-region maxima as the final acceptance rule.
+  v12 general-route counterevidence requires both strong frame-domain gates and
+  both identity encoders to disagree. Apply masks before frame selection in both
+  initial proposals and general verification; preserve alternate valid frames.
+  Do not turn a rejected frame into a whole-media veto or invalidate feature caches.
+  Reference ordering breaks equal quality ties by content SHA and stable media
+  key. Do not restore dependence on MediaStore enumeration or input permutations;
+  hashes order work, never establish semantic identity.
 - perceptual.py optionally verifies candidates with exported DreamSim ONNX features.
   Keep signals aligned to the same original frame pair, lazy bounded extraction,
   SHA/model/sampling isolation, and explicit basic/enhanced status when absent.
   Presets are development-calibrated; do not advertise a library-wide accuracy.
+- complementary.py optionally adds local SigLIP 2 after the original consolidation.
+  Preserve upstream bilinear preprocessing, same-frame three-signal verification,
+  distinct region support for the general route, route-conflict abstention, bounded
+  candidate retrieval and lazy cache isolation. Semantic similarity alone must not
+  accept identity matches. Do not feed reviewer labels/names into inference.
+- identity_refine.py optionally loads larger CCIP only after same-frame eligible
+  identity, semantic and perceptual candidate checks. Keep its own model scale and
+  cache identity; no unconditional whole-library extraction or route-conflict fallback.
+  Supplemental whole merges need two disjoint cross-group correspondences as well
+  as a common directly verified reference. Preserve source/target distinctness.
+- domain_refine.py optionally supplements missed style routes after all original
+  checks fail. Preserve the original first pass. Both frames need domain support,
+  small AND large identity support, and same-frame semantic/perceptual evidence.
+  Domain disagreement abstains; domain scores alone cannot accept identity.
+  Keep raw probabilities in their separate cache; never unit-normalize them.
+  v15 also disables the specialist gate per frame when real-domain probability
+  is at least .90. Preserve the general route and ambiguous/character gates;
+  the style classifier's 3d label does not establish specialist applicability.
+- local_context.py optionally detects a single character context in the middle
+  sampled frame. Never select one of multiple detected subjects. Retain source
+  frame/crop coordinates, original-frame domain/support checks, both identity
+  encoders and aligned perceptual/semantic evidence. Cache absent detections;
+  bound cold work, memory and existing-member retrieval. This detector is not a
+  general object recognizer; keep the unified UI and unchanged general route.
+  Large local identity features are lazy after cheap evidence passes; preserve
+  complete legacy records and partial-record resumption. Missing features are
+  not negative verdicts. Reuse the stored crop/frame instead of redetecting.
+- subject_merge.py may reselect an original media item as a common reference for
+  established groups. Reverify every union member directly, including old references
+  and earlier merged members; rewrite scores/frame evidence for the new reference.
+  Candidate edges are not merge evidence. Preserve work bounds and cancellation.
+  Partial regrouping also needs two distinct directly matching members from the
+  other source group for each core member; reverify residual groups and preserve
+  each file exactly once. Do not use human example names/IDs as inference rules.
+- subject_singletons.py reviews only singletons against frozen existing groups:
+  fixed original reference with local-context proof, at least four distinct-SHA
+  peers, at least three/half peer support, unique qualifying retrieved target.
+  Additions cannot support later additions; never transfer established members.
+  Preserve scope, retrieval/verification budgets and abstention on incomplete
+  ambiguity checks. Retrieval evidence alone is never an acceptance verdict.
+  The alternate_identity route may use a frozen target's lower-quartile direct
+  degree floor (at least three), only for <=64 distinct-SHA peers, within the
+  same request budget. Keep ordinary local-context support requirements intact;
+  incomplete statistics or oversized groups retain the strict half-peer rule.
+  Check candidate support before computing density: already sufficient support
+  or fewer than three peers needs no target-internal comparisons. Deferred
+  statistics still share the budget and cannot bypass target ambiguity checks.
+- identity_extra.py is optional CCIP v2 joint evidence, not universal identity.
+  Require both frame-domain gates and same-frame small/large identity, semantic
+  and perceptual evidence before lazy encoding; preserve independent model/cache
+  identity, cold-work caps and cancellation. A budget miss is not a negative.
 - cache.py cleanup is local and allowlisted, requires an expiring preview token,
   rejects scans/syncs, shares the operation lock and invalidates pending file plans.
   Keep models, settings, journals, unknown files and other instances; never call ADB.

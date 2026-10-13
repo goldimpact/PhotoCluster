@@ -4,10 +4,14 @@ Bounded candidate retrieval -> SIFT correspondences -> homography -> majority
 tile verification. Small residual deformation is allowed only after geometry
 passes. Sampled video matches establish shared imagery, never file equality.
 """
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+from contextlib import closing
 from functools import lru_cache
 from pathlib import Path
 import os
+import tempfile
+import zipfile
+import threading
 
 import cv2
 import numpy as np
@@ -17,6 +21,7 @@ from . import vision
 from .rules import normalize_rules
 
 VERSION = 1
+_archive_locks=tuple(threading.Lock() for _ in range(64))
 YY,XX=np.mgrid[:384,:384].astype(np.float32)
 PAD_INDEX=np.concatenate([np.arange(n,n+64)[np.pad(np.arange(64),(3,3),mode='reflect')] for n in range(0,384,64)])
 
@@ -34,22 +39,37 @@ def target_statistics(path,index):
     return cv2.GaussianBlur(image,(3,3),0),gray,mean,variance
 
 
-def prepare(photo, force=False):
+def prepare(photo, force=False, stats=None):
+    # Duplicate admitted work must not replace an archive while another worker
+    # has it open (Windows denies that replacement). Fixed stripes bound locks.
+    target=os.path.normcase(str(Path(photo['feature_path']).resolve().with_suffix('.variants.npz')))
+    with _archive_locks[hash(target)%len(_archive_locks)]:
+        return _prepare(photo,force,stats)
+
+
+def _prepare(photo, force=False, stats=None):
     from .frame_policy import sampling_identity
     sampled = sampling_identity(photo)
     path = Path(photo['feature_path']).with_suffix('.variants.npz')
     if path.exists() and not force:
-        with np.load(path) as data:
-            if (str(data['sha']) == photo['sha256'] and int(data['version']) == VERSION
-                    and (str(data['sampling']) if 'sampling' in data else '') == sampled):
-                return dict(photo, variant_path=str(path), hashes=data['hashes'].tolist(),
-                            signatures=data['signatures'].tolist())
-    images = [vision.comparison_image(photo['feature_path'])]
+        try:
+            with np.load(path) as data:
+                if (str(data['sha']) == photo['sha256'] and int(data['version']) == VERSION
+                        and (str(data['sampling']) if 'sampling' in data.files else '') == sampled):
+                    result=dict(photo, variant_path=str(path), hashes=data['hashes'].tolist(),
+                                signatures=data['signatures'].tolist())
+                    if stats is not None:stats['cached']=True
+                    return result
+        except (OSError, ValueError, KeyError, EOFError, zipfile.BadZipFile):
+            pass  # Interrupted/invalid archives are rebuilt from local previews.
+    if stats is not None:stats['cached']=False
     if photo.get('frame_path') and Path(photo['frame_path']).exists():
         with np.load(photo['frame_path']) as data:
             frames = data['frames']
             images = [cv2.resize(frames[i], (384, 384)) for i in
                       np.unique(np.linspace(0, len(frames)-1, min(3, len(frames))).astype(int))]
+    else:
+        images = [vision.comparison_image(photo['feature_path'])]
     values, hashes, signatures = {}, [], []
     sift = cv2.SIFT_create(nfeatures=600, contrastThreshold=.018)
     for i, image in enumerate(images):
@@ -64,8 +84,20 @@ def prepare(photo, force=False):
             hashes.extend(vision.phash(np.rot90(rgb, k)) for k in range(4))
     hashes = np.unique(np.asarray(hashes, np.uint64))
     signatures = np.unique(np.asarray(signatures, np.uint64))
-    np.savez_compressed(path, **values, count=len(images), hashes=hashes,
-                        signatures=signatures, sha=photo['sha256'], version=VERSION, sampling=sampled)
+    values.update(count=len(images), hashes=hashes, signatures=signatures,
+                  sha=photo['sha256'], version=VERSION, sampling=sampled)
+    # Same NPZ arrays, faster lossless compression; replace only complete files.
+    temporary=None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, suffix='.tmp', delete=False) as f:
+            temporary=Path(f.name)
+            with zipfile.ZipFile(f, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
+                for key,value in values.items():
+                    with archive.open(key+'.npy', 'w', force_zip64=True) as entry:
+                        np.lib.format.write_array(entry,np.asanyarray(value),allow_pickle=False)
+        temporary.replace(path)
+    finally:
+        if temporary is not None:temporary.unlink(missing_ok=True)
     # A sampling upgrade may rewrite the same path with different frame data.
     load.cache_clear();frame_image.cache_clear();target_statistics.cache_clear()
     return dict(photo, variant_path=str(path), hashes=hashes.tolist(), signatures=signatures.tolist())
@@ -227,12 +259,14 @@ def compare_candidates(representatives, photo, candidates, executor, cache=None,
 
 
 def _compare_candidates(representatives, photo, candidates, executor,rules=None):
+    if not candidates:return []
+    # Query verdict cache first; only unpack descriptors for real missing work.
+    target=load(photo['variant_path'])
     rules=normalize_rules(rules)
     if os.environ.get('PHOTOCLUSTER_GEOMETRY_GPU','1')=='1':
         from .geometry_gpu import match_sources
         from .acceleration import cuda
         if cuda() is not None:
-            target=load(photo['variant_path'])
             sources=list(executor.map(lambda j:load(representatives[j]['variant_path']),candidates))
             maps=match_sources(sources,target,mirror=rules['mirror'])
             if maps is not None:
@@ -242,7 +276,6 @@ def _compare_candidates(representatives, photo, candidates, executor,rules=None)
     # Keep the benchmark path opt-in; dense semantic retrieval uses GPU by default.
     if os.environ.get('PHOTOCLUSTER_SIFT_GPU')!='1' or cuda() is None:
         return executor.map(lambda j:compare(representatives[j],photo,rules=rules),candidates)
-    target=load(photo['variant_path'])
     sources=list(executor.map(lambda j:load(representatives[j]['variant_path']),candidates))
     maps=[{} for _ in candidates];pairs=[];owners=[]
     for n,source in enumerate(sources):
@@ -259,25 +292,63 @@ def _compare_candidates(representatives, photo, candidates, executor,rules=None)
     return executor.map(lambda item:compare(representatives[item[1]],photo,maps[item[0]],rules),enumerate(candidates))
 
 
-def cluster(photos, scope, progress, cancelled, force=False, pair_cache=None,rules=None):
+def cluster(photos, scope, progress, cancelled, force=False, pair_cache=None,rules=None,feature_stats=None):
     from .acceleration import cpu_budget
     with cpu_budget():
-        return _cluster(photos,scope,progress,cancelled,force,pair_cache,normalize_rules(rules))
+        return _cluster(photos,scope,progress,cancelled,force,pair_cache,normalize_rules(rules),feature_stats)
 
 
-def _cluster(photos, scope, progress, cancelled, force=False, pair_cache=None,rules=None):
-    from .acceleration import workers
+def _cluster(photos, scope, progress, cancelled, force=False, pair_cache=None,rules=None,feature_stats=None):
     load.cache_clear()
     frame_image.cache_clear()
     target_statistics.cache_clear()
-    prepared = []
-    # Bounded batches prevent loading the entire library into the task queue.
-    with ThreadPoolExecutor(max_workers=workers()) as pool:
-        for start in range(0, len(photos), 24):
-            if cancelled():
-                return None
-            for photo in pool.map(lambda p: prepare(p, force), photos[start:start+24]):
-                prepared.append(photo)
-                progress(len(prepared), len(photos), 'variant_features')
+    prepared = prepare_all(photos, progress, cancelled, force, feature_stats)
+    if prepared is None:return None
     return vision.cluster(prepared, 'variants', scope,
                           lambda done,total: progress(done,total,'variant_match'), cancelled, pair_cache,rules)
+
+
+def prepare_all(photos, progress, cancelled, force=False, stats=None):
+    """Serial lightweight index reads + bounded completion-driven extraction."""
+    from .acceleration import workers
+    from .variant_cache import MetadataCache
+    stats = stats if stats is not None else {}
+    stats.update(feature_cached=0,feature_computed=0)
+    if not photos:return []
+    prepared=[None]*len(photos);done=0;cursor=0;pending={}
+    count=workers()
+    def extract(photo):
+        if cancelled():return None
+        detail={}
+        before=cache.identity(photo)
+        result=prepare(photo,force,detail)
+        # Capture stat after atomic replacement; main-thread index writes check it.
+        identity=cache.identity(result)
+        if detail['cached'] and identity!=before:identity=None
+        return result,detail['cached'],identity
+    with closing(MetadataCache(Path(photos[0]['feature_path']).parent,VERSION)) as cache:
+        with ThreadPoolExecutor(max_workers=count,thread_name_prefix='variant-features') as pool:
+            try:
+                if progress:progress(0,len(photos),'variant_features')
+                while cursor<len(photos) or pending:
+                    if cancelled():return None
+                    while cursor<len(photos) and len(pending)<count*2:
+                        if cancelled():return None
+                        p=photos[cursor];value=None if force else cache.get(p)
+                        if value is not None:
+                            prepared[cursor]=value;stats['feature_cached']+=1;done+=1
+                            if progress:progress(done,len(photos),'variant_features')
+                        else:pending[pool.submit(extract,p)]=cursor
+                        cursor+=1
+                    if pending:
+                        finished,_=wait(pending,timeout=.1,return_when=FIRST_COMPLETED)
+                        for future in finished:
+                            i=pending.pop(future);result=future.result()
+                            if result is None:return None
+                            value,hit,identity=result;prepared[i]=value
+                            cache.put(value,identity)
+                            stats['feature_cached' if hit else 'feature_computed']+=1;done+=1
+                            if progress:progress(done,len(photos),'variant_features')
+            finally:
+                for future in pending:future.cancel()
+    return None if cancelled() else prepared

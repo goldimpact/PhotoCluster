@@ -12,6 +12,11 @@ from photocluster import subject, character, subject_auto as auto
 @pytest.fixture(autouse=True)
 def base_pipeline_without_optional_export(monkeypatch):
     monkeypatch.setattr(auto.perceptual,'installed',lambda:False)
+    monkeypatch.setattr(auto.complementary,'installed',lambda:False)
+    monkeypatch.setattr(auto.identity_refine,'installed',lambda:False)
+    monkeypatch.setattr(auto.domain_refine,'installed',lambda:False)
+    monkeypatch.setattr(auto.local_context,'installed',lambda:False)
+    monkeypatch.setattr(auto.identity_extra,'installed',lambda:False)
 
 
 def gv(angle):
@@ -37,6 +42,21 @@ def prepare(monkeypatch,gs,cs,masks):
         return [cs[int(p['key'])] for p in items]
     monkeypatch.setattr(character,'vectors',vectors)
     return requested
+
+
+def test_equal_quality_reference_and_grouping_do_not_depend_on_inventory_order(monkeypatch):
+    from itertools import permutations
+    ps=[dict(p,size=100,sharpness=10) for p in photos(3)]
+    # The middle vector can match both ends; starting from an end splits them.
+    gs={'0':gv(0),'1':gv(.65),'2':gv(1.3)}
+    monkeypatch.setattr(subject,'vectors',lambda items,*a:[gs[p['key']] for p in items])
+    monkeypatch.setattr(auto,'load_routes',lambda items,*a:[np.array([False]) for p in items])
+    baseline=auto.cluster(ps,None)
+    assert baseline and baseline[0][0]['key']=='2'
+    for order in permutations(ps):assert auto.cluster(list(order),None)==baseline
+    # Real quality differences still precede the content/key tie breaker.
+    preferred=[dict(p,width=200 if p['key']=='0' else 100) for p in ps]
+    assert auto.cluster(preferred,None)[0][0]['key']=='0'
 
 
 def test_one_scan_groups_general_and_specialist_matches_without_partitioning(monkeypatch):
@@ -212,3 +232,31 @@ def test_optional_actual_router():
     scores=auto.routing_scores([Image.new('RGB',(64,64),'red')])
     assert scores.shape==(1,5) and np.isfinite(scores).all()
     assert float(scores.sum())==pytest.approx(1,abs=1e-4)
+
+
+def test_postpass_reselects_reference_and_rewrites_direct_scores(monkeypatch):
+    angles=[0,1.4,.6,.8]
+    cs=[cv(x) for x in angles];gs=[gv(0)]*4;masks=[np.array([True])]*4
+    prepare(monkeypatch,gs,cs,masks)
+    p=photos(4)
+    groups=auto.cluster(p,None)
+    assert len(groups)==1 and len(groups[0])==4
+    ref=groups[0][0]
+    assert ref['key'] in ('2','3') and ref['relation']=='reference'
+    for member in groups[0][1:]:
+        r=int(ref['key']);i=int(member['key'])
+        match=auto.verify_pair(gs[r],gs[i],masks[r],masks[i],cs[r],cs[i],.72)
+        assert match is not None
+        assert member['score']==round(min(match[1][0],.999),4)
+        assert (member['reference_frame'],member['match_frame'])==match[1][1:]
+        assert member['relation']=='subject'
+    p[1]['album']=p[3]['album']='/other'
+    assert [set(x['album'] for x in g) for g in auto.cluster(p,None,scope='album')]==[{'/test'},{'/other'}]
+
+
+def test_cancel_during_postpass_does_not_return_partial_groups(monkeypatch):
+    prepare(monkeypatch,[gv(0)]*4,[cv(x) for x in (0,1.4,.6,.8)],[np.array([True])]*4)
+    stopped=[False]
+    def progress(done,total,phase):
+        if phase=='subject_consolidate':stopped[0]=True
+    assert auto.cluster(photos(4),None,progress=progress,cancelled=lambda:stopped[0]) is None

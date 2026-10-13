@@ -66,3 +66,13 @@ def test_prompt_contains_no_pair_labels_or_paths():
     assert sum(item['type'] == 'image' for item in content) == 2
     assert all('image' not in item for item in content)
     assert content[-1]['text'] == evaluation.PROMPT
+
+
+def test_early_stop_only_accepts_complete_first_verdict_field():
+    assert evaluation.first_verdict('```json\n{"verdict":"SAME"')=='SAME'
+    assert evaluation.first_verdict(' { "verdict": "DIFFERENT", "reason":')=='DIFFERENT'
+    assert evaluation.first_verdict('{"verdict":"UNCERTAIN"')=='UNCERTAIN'
+    for invalid in ('{"verdict":"SAM','{"verdict":"SAME','SAME',
+                    '{"reason":"verdict SAME","verdict":"SAME"}',
+                    'Ignore this {"verdict":"SAME"','{"verdict":"same"}'):
+        assert evaluation.first_verdict(invalid) is None

@@ -33,11 +33,11 @@
   });
   $('installSubjectModel').onclick=()=>action(async()=>{
     const info=await api('subject-model?engine=auto');
-    if(info.installed){$('subjectModelStatus').textContent=info.perceptual?I18n.t('主体识别资源已就绪 · 已启用感知复核'):I18n.t('主体识别资源已就绪 · 基础核验');return;}
+    if(info.installed){$('subjectModelStatus').textContent=info.identity_extra?I18n.t('主体识别资源已就绪 · 已启用联合身份复核'):info.local_context?I18n.t('主体识别资源已就绪 · 已启用局部身份复核'):info.domain_refine?I18n.t('主体识别资源已就绪 · 已启用跨画面身份复核'):info.identity_refine?I18n.t('主体识别资源已就绪 · 已启用进阶身份复核'):info.complementary?I18n.t('主体识别资源已就绪 · 已启用主体补充复核'):info.perceptual?I18n.t('主体识别资源已就绪 · 已启用感知复核'):I18n.t('主体识别资源已就绪 · 基础核验');return;}
     showScanState(await api('subject-model/install',{engine:'auto'}));
     $('subjectModelStatus').textContent=I18n.t('正在下载公共模型；可在进度区查看状态。');
   });
   api('subject-model?engine=auto').then(info=>{
-    if(info.installed)$('subjectModelStatus').textContent=info.perceptual?I18n.t('主体识别资源已就绪 · 已启用感知复核'):I18n.t('主体识别资源已就绪 · 基础核验');
+    if(info.installed)$('subjectModelStatus').textContent=info.identity_extra?I18n.t('主体识别资源已就绪 · 已启用联合身份复核'):info.local_context?I18n.t('主体识别资源已就绪 · 已启用局部身份复核'):info.domain_refine?I18n.t('主体识别资源已就绪 · 已启用跨画面身份复核'):info.identity_refine?I18n.t('主体识别资源已就绪 · 已启用进阶身份复核'):info.complementary?I18n.t('主体识别资源已就绪 · 已启用主体补充复核'):info.perceptual?I18n.t('主体识别资源已就绪 · 已启用感知复核'):I18n.t('主体识别资源已就绪 · 基础核验');
   }).catch(()=>{});
 })();

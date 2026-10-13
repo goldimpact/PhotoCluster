@@ -64,3 +64,55 @@ The local export tool verifies checkpoint SHA-256 values and numerical parity.
 No upstream source or weights are bundled. PyTorch, torchvision, DreamSim, PEFT
 and ONNX are optional export dependencies, not runtime requirements. Standard
 runtime inference uses ONNX Runtime. Perceptual scores are not identity probabilities.
+## Optional complementary subject encoder
+
+SigLIP 2 Base (`google/siglip2-base-patch16-224`) is published under Apache-2.0.
+The optional ONNX conversion is from `onnx-community/siglip2-base-patch16-224-ONNX`,
+revision `ba1f3b0843f24bc5417d38e19c37b287d719b2f4`, `vision_model_quantized.onnx`.
+SHA-256: `5f2b401c1a4fc095702a5d45348e17ad46c4f87064085365b43c6e8eaa5c0070`.
+Weights are downloaded separately and are not included in this repository.
+The upstream model card is https://huggingface.co/google/siglip2-base-patch16-224
+and the paper is https://arxiv.org/abs/2502.14786.
+This is a visual semantic encoder, not a validated universal identity recognizer.
+
+## Optional larger character refinement encoder
+
+`deepghs/ccip_onnx/ccip-caformer_b36-24/model_feat.onnx` derives from CCIP and is
+published under OpenRAIL, separately from this project's MIT license. The installer
+pins revision `eb2acdd29af1703388d3d0c04221add322bc9110` and SHA-256
+`c1e7333a55c2ad9e03cd340c635e96c9c1d86f0836fa7eae65720e7c9c94ee51`.
+Review https://huggingface.co/deepghs/ccip and https://huggingface.co/deepghs/ccip_onnx
+before redistributing model weights. Weights are optional and not bundled.
+This character encoder is not a general identity recognition guarantee.
+
+## Optional supplemental domain classifier
+
+[`deepghs/anime_real_cls`](https://huggingface.co/deepghs/anime_real_cls),
+`mobilenetv3_v1.4_dist/model.onnx`, is published under OpenRAIL, separately from
+the project's MIT license. Revision: `097a6c1e9e62866a435810c883a45a7cb2c7077d`.
+SHA-256: `c02d68cc7f56dbcbcd4f41a10df190385c1f963f22c4eefb8d162869800ed3b0`.
+Weights are optional, downloaded separately and not bundled. Its anime/real
+labels describe an image domain; they do not establish subject identity or
+single-character presence. Review the upstream license before redistribution.
+
+## Optional local context detector
+
+[`deepghs/anime_face_detection`](https://huggingface.co/deepghs/anime_face_detection)
+lists MIT for `face_detect_v1.4_n/model.onnx`. Pinned revision:
+`784dc4c0bb692351ddcdbe6131a050b17d3025d5`; SHA-256:
+`fd860b650a4377046842c3cd80d01b0b408bdfbdb4acee5759630f82c6ef04a9`.
+The installer downloads weights separately; no model or upstream implementation
+is bundled. The model card describes a YOLOv8-based anime face detector. Review
+upstream provenance and license terms before redistributing weights. A detected
+face is a localization cue, not subject identity; other encoders retain their
+own licenses, including CCIP's OpenRAIL terms.
+
+## Optional additional identity encoder
+
+`deepghs/ccip_onnx/ccip-v2-caformer_s36-10/model_feat.onnx` is published under
+OpenRAIL, separately from the project's MIT license. Revision:
+`eb2acdd29af1703388d3d0c04221add322bc9110`; SHA-256:
+`484ad463f569ab95308cf47e91ba358b01c40bc53289b90b950b94fcde7f2628`.
+Weights are optional and not bundled. Review the upstream CCIP/CCIP ONNX model
+cards and license before redistributing weights. Joint agreement among identity
+encoders does not establish a universal or independently calibrated accuracy.

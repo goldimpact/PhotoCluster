@@ -36,6 +36,18 @@ phone folder. You cannot add files to virtual groups.
   crops, occlusion and cross-style positives. An optional locally exported DreamSim
   encoder adds candidate verification; the UI distinguishes basic verification
   from perceptual verification. It is not included in the 191 MB installer.
+  An additional optional SigLIP 2 encoder (about 95 MB) reviews missed group
+  candidates after initial classification, together with the existing evidence.
+  It runs locally and its activation is shown in the UI; first-use extraction
+  adds work and subsequent runs reuse its own cache.
+  A further optional larger CCIP encoder (about 384 MB, OpenRAIL) can refine only
+  still-rejected eligible character candidates; it has its own cache and score scale.
+  An optional 17 MB domain classifier can review missed style routes with both
+  identity encoders and same-frame supporting evidence; it does not identify subjects itself.
+  Optional local context review (12 MB detector) helps compare distant and close
+  character views, with bounded candidate extraction and its own reusable cache.
+  An optional extra identity encoder (150 MB, OpenRAIL) can add joint evidence
+  for difficult candidates, with bounded extraction and group support checks.
   See [setup and development-calibrated thresholds](docs/SUBJECT-GROUPING.md).
   Initial development examples improve, but library-wide accuracy is unvalidated.
   Older subject results request incremental reclassification;

@@ -220,7 +220,12 @@ class Service:
                         messages={'embedding':'本地模型分析关键帧内容','content_match':'跨格式内容归组',
                                   'subject_embedding':'本地主体模型提取整图与区域特征','subject_match':'自动发现主体分组（实验）',
                                   'character_embedding':'本地动漫角色模型提取身份特征','character_match':'按动漫角色身份归组（实验）',
-                                  'subject_routing':'分析主体识别线索','subject_supplement':'补充主体特征','subject_verify':'核验候选主体的感知细节'}
+                                  'subject_routing':'分析主体识别线索','subject_supplement':'补充主体特征','subject_verify':'核验候选主体的感知细节',
+                                  'subject_consolidate':'复核主体组与共同参考图',
+                                  'subject_complement':'提取主体补充复核特征','subject_complement_match':'查找遗漏的主体组关联',
+                                  'subject_local_retrieval':'复用身份特征补查候选','subject_local_context':'按需核验主体局部细节',
+                                  'subject_singletons':'复核未归组媒体的主体证据',
+                                  'subject_extra_identity':'按需联合核验主体身份'}
                         self.update(phase=phase,message=messages[phase])
                         self.update(done=done,total=total,phase_seconds=round(seconds,1),rate=round(rate,1),eta_seconds=round((total-done)/rate) if rate else None)
                     groups=(subject.backend(subject_engine) if mode=='subject' else semantic).cluster(processed,self.thumbs,scope,threshold,content_report,self.cancel.is_set,force)
@@ -232,16 +237,18 @@ class Service:
                             pairs.execute('DELETE FROM pairs')
                     pair_cache = None if force else PairCache(self.data/'geometry-pairs.sqlite3',pair_version(rules))
                     stage = {'phase': None}
+                    feature_stats = {}
                     def variant_report(done, total, phase):
                         if stage['phase'] != phase:
                             stage.update(phase=phase, started=time.perf_counter())
                         seconds = time.perf_counter()-stage['started']
                         rate = done/max(seconds,.001)
-                        self.update(phase=phase, message='提取同源画面特征（本地缓存）' if phase=='variant_features' else '验证同源画面与几何变换',
+                        self.update(phase=phase, message=(f"同源特征：复用 {feature_stats.get('feature_cached',0)} 个，计算 {feature_stats.get('feature_computed',0)} 个" if phase=='variant_features' else '验证同源画面与几何变换'),
                                     done=done,total=total,rate=round(rate,1),eta_seconds=round((total-done)/rate) if rate else None,
+                                    phase_seconds=round(seconds,1),**feature_stats,
                                     verified_pairs=pair_cache.computed if pair_cache else 0,reused_pairs=pair_cache.hits if pair_cache else 0)
                     try:
-                        groups = variants.cluster(processed, scope, variant_report, self.cancel.is_set, force,pair_cache,rules)
+                        groups = variants.cluster(processed, scope, variant_report, self.cancel.is_set, force,pair_cache,rules,feature_stats)
                     finally:
                         if pair_cache:pair_cache.close()
                 else:
@@ -251,7 +258,7 @@ class Service:
                 self.update(phase='stopped', message='已停止，图片特征已保存')
                 return
             match_result = dict(signature=signature, groups=[
-                [{k: p[k] for k in ('key', 'score', 'reason','relation','match_frame','reference_frame') if k in p} for p in group] for group in groups])
+                [{k: p[k] for k in ('key', 'score', 'reason','relation','match_frame','reference_frame','subject_evidence') if k in p} for p in group] for group in groups])
             self.save('match-cache.json', match_result)
             (self.data/'matches').mkdir(exist_ok=True)
             self.save(cache_file, match_result)
@@ -279,9 +286,14 @@ class Service:
             if mode=='subject':summary['subject_engine']=subject_engine
             if mode=='subject' and subject_engine=='auto':
                 from .subject_auto import VERSION
-                from . import perceptual
+                from . import perceptual, complementary, identity_refine, domain_refine, local_context, identity_extra
                 summary['subject_policy']=VERSION
                 summary['subject_perceptual']=perceptual.installed()
+                summary['subject_complementary']=complementary.installed()
+                summary['subject_identity_refine']=complementary.installed() and identity_refine.installed()
+                summary['subject_domain_refine']=summary['subject_identity_refine'] and domain_refine.installed()
+                summary['subject_local_context']=local_context.installed()
+                summary['subject_identity_extra']=identity_extra.installed()
             self.save('groups.json', result)
             with self.lock:
                 self.result = result

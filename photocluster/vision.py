@@ -386,9 +386,6 @@ def _cluster_order(order, mode, scope, progress, cancelled, tree, local_index, e
             candidates.update(local_index.search(i, limit=32 if mode=='variants' else 16))
         best = None
         candidates = [j for j in sorted(candidates) if scope != 'album' or representatives[j]['album'] == photo['album']]
-        if candidates and mode == 'variants':
-            from .variants import load
-            load(photo['variant_path'])  # Avoid concurrent decompression of the query.
         if candidates and mode in ('strong', 'relaxed') and photo.get('feature_path'):
             # All candidate tasks share this query. Populate once before fanout
             # rather than racing to open/decompress it in every worker.

@@ -65,7 +65,7 @@
   const $=id=>document.getElementById(id),history=new SpeedHistory();
   const storageKey='photocluster.speedHistory';let pendingRestore=null;
   try{pendingRestore=JSON.parse(sessionStorage.getItem(storageKey)||'null');sessionStorage.removeItem(storageKey);}catch{}
-  const names={subject_routing:I18n.t('识别线索'),subject_supplement:I18n.t('补充主体特征'),refresh:I18n.t('同步目录'),scan:I18n.t('读取与提取特征'),cluster:I18n.t('准备分类'),embedding:I18n.t('内容特征'),content_match:I18n.t('内容匹配'),variant_features:I18n.t('同源特征'),variant_match:I18n.t('几何验证'),subject_embedding:I18n.t('主体区域特征'),subject_match:I18n.t('主体匹配'),character_embedding:I18n.t('角色身份特征'),character_match:I18n.t('角色身份匹配'),model_install:I18n.t('下载模型')};
+  const names={subject_extra_identity:I18n.t('联合身份复核'),subject_singletons:I18n.t('未归组媒体复核'),subject_local_retrieval:I18n.t('身份候选补查'),subject_local_context:I18n.t('局部身份核验'),subject_complement:I18n.t('主体补充特征'),subject_complement_match:I18n.t('主体组关联'),subject_consolidate:I18n.t('主体组合并复核'),subject_routing:I18n.t('识别线索'),subject_supplement:I18n.t('补充主体特征'),refresh:I18n.t('同步目录'),scan:I18n.t('读取与提取特征'),cluster:I18n.t('准备分类'),embedding:I18n.t('内容特征'),content_match:I18n.t('内容匹配'),variant_features:I18n.t('同源特征'),variant_match:I18n.t('几何验证'),subject_embedding:I18n.t('主体区域特征'),subject_match:I18n.t('主体匹配'),character_embedding:I18n.t('角色身份特征'),character_match:I18n.t('角色身份匹配'),model_install:I18n.t('下载模型')};
   const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
   let width=600,maximum=1,frame=null,lastFrame=null,viewTime=0,broken=false,selected=null,pointer=null;
   const number=n=>n.toLocaleString(I18n.locale,{maximumFractionDigits:1});

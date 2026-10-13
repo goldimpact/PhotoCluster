@@ -91,6 +91,11 @@ async function loadGroups(){
     if(s.mode==='variants')$('resultMeta').textContent+=I18n.t(' · 本次规则：')+(s.rules?window.ScanOptions.ruleText(s.rules):I18n.t('旧版完整规则（含扭曲校正）'));
     if(s.mode==='subject'&&s.subject_engine!=='auto')$('resultMeta').textContent+=I18n.t(' · 旧版主体结果，可重新分类更新');
     if(s.mode==='subject'&&s.subject_perceptual)$('resultMeta').textContent+=I18n.t(' · 本次已使用感知复核');
+    if(s.mode==='subject'&&s.subject_complementary)$('resultMeta').textContent+=I18n.t(' · 本次已使用主体补充复核');
+    if(s.mode==='subject'&&s.subject_identity_extra)$('resultMeta').textContent+=I18n.t(' · 本次已启用联合身份复核');
+    else if(s.mode==='subject'&&s.subject_local_context)$('resultMeta').textContent+=I18n.t(' · 本次已启用局部身份复核');
+    else if(s.mode==='subject'&&s.subject_domain_refine)$('resultMeta').textContent+=I18n.t(' · 本次已启用跨画面身份复核');
+    else if(s.mode==='subject'&&s.subject_identity_refine)$('resultMeta').textContent+=I18n.t(' · 本次已启用进阶身份复核');
     $('groups').className='folder-grid';
     $('groups').innerHTML=data.groups.map(g=>I18n.html`<button class="virtual-folder" data-group="${g.id}"><div class="folder-cover">${g.photos.slice(0,3).map(p=>I18n.html`<img loading="lazy" src="/api/thumb/${p.key}" alt="分类预览">`).join('')}</div><div class="folder-title">▰ ${g.kind==='subject'?I18n.t('主体组'):g.kind==='content'?I18n.t('内容组'):g.kind==='variants'?I18n.t('同源画面组'):I18n.t('相似组')} ${String(g.id).padStart(3,'0')}${g.photos.some(p=>p.media_type==='video')?I18n.t(' · 视频'):g.photos.some(p=>p.animated)?I18n.t(' · 动画'):''}</div><div class="folder-meta">${g.photos.length} 个文件 · ${new Set(g.photos.map(p=>p.album)).size} 个来源目录</div><div class="folder-meta">最新：${esc(dateText(Math.max(...g.photos.map(photoTime))))}</div><div class="folder-meta">${['content','variants','subject'].includes(g.kind)?I18n.t('总大小 ')+bytes(g.photos.reduce((n,p)=>n+p.size,0)):I18n.t('候选体积 ')+bytes(g.potential_bytes)} <span>查看 →</span></div></button>`).join('')||I18n.html('<div class="empty"><h3>当前筛选下没有相似组</h3><p>可调整筛选或选择内容相似模式。</p></div>');
   }

@@ -44,6 +44,21 @@ def test_missing_or_misaligned_support_is_not_silently_ignored():
         auto.verify_pair(g,g,off,off,None,None,.72,a,np.concatenate([a,a]))
 
 
+def test_stronger_identity_can_support_appearance_change_without_mixing_frames():
+    g=general();on=np.array([True]);a=vector(1)
+    # CCIP .88 with perceptual .53 passes the complementary route.
+    assert auto.verify_pair(g,g,on,on,a,vector(.76),.72,a,vector(.53)) is None
+    assert auto.verify_pair(g,g,on,on,a,vector(.76),.72,a,vector(.53),regroup=True)
+    # Ordinary identity evidence still needs the original appearance gate.
+    assert auto.verify_pair(g,g,on,on,a,vector(.70),.72,a,vector(.53),regroup=True) is None
+    assert auto.verify_pair(g,g,on,on,a,vector(.76),.72,a,vector(.49),regroup=True) is None
+    # Two different frames cannot donate separate strong evidence.
+    assert auto.verify_pair(g,np.concatenate([g,g]),on,np.array([True,True]),
+        a,np.concatenate([vector(.76),vector(.6)]),.72,a,
+        np.concatenate([vector(.49),vector(.9)]),regroup=True) is None
+    assert auto.verify_pair(g,g,on,np.array([False]),a,vector(.99),.72,a,vector(.9),regroup=True) is None
+
+
 def test_bounded_cache_flushes_on_close_versions_sha_and_cancels(tmp_path,monkeypatch):
     calls=[];version=['v1'];cancel=[False]
     monkeypatch.setattr(perceptual,'model_identity',lambda:version[0])
@@ -71,7 +86,23 @@ def test_optional_model_is_part_of_final_result_identity(monkeypatch):
     assert first!=auto.model_identity()
 
 
+def test_force_does_not_repeat_expensive_inference_after_memory_eviction(tmp_path,monkeypatch):
+    calls=[]
+    monkeypatch.setattr(perceptual,'model_identity',lambda:'test')
+    monkeypatch.setattr(subject,'frames',lambda *a:[Image.new('RGB',(8,8))])
+    monkeypatch.setattr(perceptual,'encode',lambda *a:(calls.append(1) or vector(1)))
+    photos=[dict(key=str(i),sha256='same') for i in range(70)]
+    cache=perceptual.VectorCache(tmp_path,force=True)
+    for photo in photos:cache.get(photo)
+    cache.get(photos[0]);assert len(calls)==70
+    cache.get(dict(photos[0],sha256='changed'));assert len(calls)==71
+    cache.close()
+    cache=perceptual.VectorCache(tmp_path,force=True);cache.get(photos[1]);cache.close()
+    assert len(calls)==72  # A new forced job does recompute.
+
+
 def test_cluster_only_encodes_candidates_and_always_closes(monkeypatch):
+    monkeypatch.setattr(auto.complementary,'installed',lambda:False)
     photos=[dict(key=str(i),sha256=str(i),album='/test',size=10-i,width=100,height=100,sharpness=10-i) for i in range(3)]
     g=general();calls=[];closed=[]
     monkeypatch.setattr(subject,'vectors',lambda *a:[g,g,-g])

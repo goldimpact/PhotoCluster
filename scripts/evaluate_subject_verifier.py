@@ -16,6 +16,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import time
 from urllib.parse import urlsplit
@@ -91,6 +92,12 @@ def parse_verdict(answer):
     return verdict if verdict in ('SAME', 'DIFFERENT', 'UNCERTAIN') else 'UNCERTAIN'
 
 
+def first_verdict(answer):
+    """Only a complete first JSON field can stop generation; never guess a prefix."""
+    match=re.match(r'\s*(?:```json\s*)?\{\s*"verdict"\s*:\s*"(SAME|DIFFERENT|UNCERTAIN)"',answer)
+    return match.group(1) if match else None
+
+
 def metrics(rows):
     result = {name: sum(row['same'] == truth and (row['verdict'] == 'SAME') == accepted for row in rows)
               for name, truth, accepted in [('tp', True, True), ('fn', True, False), ('fp', False, True), ('tn', False, False)]}
@@ -123,7 +130,7 @@ def offline():
                 os.environ[key] = value
 
 
-def evaluate(manifest, model_dir, output, device='auto', max_pixels=262144):
+def evaluate(manifest, model_dir, output, device='auto', max_pixels=262144, verdict_only=False):
     items, pairs = read_manifest(manifest)
     model_dir = Path(model_dir).resolve()
     weights = sorted(model_dir.glob('*.safetensors'))
@@ -142,7 +149,7 @@ def evaluate(manifest, model_dir, output, device='auto', max_pixels=262144):
         import torch
         import transformers
         from PIL import Image
-        from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
+        from transformers import AutoProcessor, Qwen3VLForConditionalGeneration, StoppingCriteria, StoppingCriteriaList
 
         if device == 'auto':
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -158,7 +165,7 @@ def evaluate(manifest, model_dir, output, device='auto', max_pixels=262144):
                       prompt_sha256=hashlib.sha256(PROMPT.encode()).hexdigest(),
                       device=device, dtype=str(dtype), torch=torch.__version__, transformers=transformers.__version__,
                       max_pixels=max_pixels, max_new_tokens=160, load_seconds=time.perf_counter()-start,
-                      complete=False, pairs=[])
+                      verdict_only=verdict_only,complete=False, pairs=[])
         started = time.perf_counter()
         for number, pair in enumerate(pairs, 1):
             images = []
@@ -169,11 +176,19 @@ def evaluate(manifest, model_dir, output, device='auto', max_pixels=262144):
             inputs = processor(text=[text], images=images, return_tensors='pt',
                                images_kwargs={'min_pixels': 4096, 'max_pixels': max_pixels}).to(device)
             before = time.perf_counter()
+            prompt_length=inputs.input_ids.shape[1]
+            class VerdictComplete(StoppingCriteria):
+                def __call__(self,input_ids,scores,**kwargs):
+                    prefix=processor.batch_decode(input_ids[:,prompt_length:],skip_special_tokens=True)[0]
+                    return first_verdict(prefix) is not None
+            generation={}
+            if verdict_only:generation['stopping_criteria']=StoppingCriteriaList([VerdictComplete()])
             with torch.inference_mode():
-                generated = model.generate(**inputs, max_new_tokens=160, do_sample=False)
+                generated = model.generate(**inputs, max_new_tokens=160, do_sample=False, **generation)
             answer = processor.batch_decode(generated[:, inputs.input_ids.shape[1]:], skip_special_tokens=True)[0]
             generated_tokens = int(generated.shape[1] - inputs.input_ids.shape[1])
-            row = dict(a=pair['a'], b=pair['b'], same=pair['same'], verdict=parse_verdict(answer),
+            verdict=(first_verdict(answer) or 'UNCERTAIN') if verdict_only else parse_verdict(answer)
+            row = dict(a=pair['a'], b=pair['b'], same=pair['same'], verdict=verdict,
                        answer=answer, seconds=time.perf_counter()-before,
                        generated_tokens=generated_tokens, token_budget_reached=generated_tokens >= 160)
             result['pairs'].append(row)
@@ -195,6 +210,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', required=True, help='Private JSON report, preferably under data/')
     parser.add_argument('--device', choices=['auto', 'cpu', 'cuda'], default='auto')
     parser.add_argument('--max-pixels', type=int, default=262144)
+    parser.add_argument('--verdict-only', action='store_true',help='Stop after a complete first verdict field; compare against full-output evaluation')
     args = parser.parse_args()
-    report = evaluate(args.manifest, args.model, args.output, args.device, args.max_pixels)
+    report = evaluate(args.manifest, args.model, args.output, args.device, args.max_pixels,args.verdict_only)
     print(json.dumps(report['counts']))
